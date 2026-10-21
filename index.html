@@ -13,6 +13,7 @@
     --mva-in:rgba(56,130,178,.16); --mva-s:rgba(34,150,94,.14);
     --mva-nw:rgba(190,140,40,.14); --mva-ne:rgba(120,140,165,.10);
     --ring:#2b3b4e; --rwy:#c9d6e2;
+    --float-bg:rgba(16,25,34,.62); --float-edge:rgba(39,54,74,.7);
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -24,6 +25,7 @@
     --mva-in:rgba(56,130,178,.13); --mva-s:rgba(34,150,94,.12);
     --mva-nw:rgba(190,140,40,.16); --mva-ne:rgba(120,140,165,.10);
     --ring:#c3cbd4; --rwy:#1d2730;
+    --float-bg:rgba(246,245,241,.72); --float-edge:rgba(213,208,197,.8);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -31,97 +33,154 @@
       --ink:#dce6f0; --dim:#7489a0; --live:#f2a33c; --key:#5fb7c4;
       --sec:#5fb7c4; --pri:#e0b35a; --sel:#f2a33c; --warn:#e8705f; --ok:#4fae77;
       --ring:#2b3b4e; --rwy:#c9d6e2;
+      --float-bg:rgba(16,25,34,.62); --float-edge:rgba(39,54,74,.7);
     }
   }
   *,*::before,*::after{box-sizing:border-box}
   [hidden]{display:none !important}
-  html,body{height:100%}
+  html,body{height:100%; overflow:hidden}
   body{margin:0; background:var(--bg); color:var(--ink);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:14px; line-height:1.45}
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:12.5px; line-height:1.35}
 
-  .app{display:grid; grid-template-columns:1fr 348px; gap:12px; padding:12px; height:100%}
+  .app{display:grid; grid-template-columns:1fr 330px; gap:8px; padding:8px; height:100vh}
   .app.solo{grid-template-columns:1fr}
-  @media (max-width:880px){ .app{grid-template-columns:1fr; height:auto} }
-  .app.solo{height:100%}
-  .app.solo .scopewrap{min-height:min(88vh, 100%)}
+  @media (max-width:880px){
+    html,body{overflow:auto}
+    .app{grid-template-columns:1fr; height:auto}
+  }
 
-  .scopewrap{background:var(--panel); border:1px solid var(--edge); border-radius:10px; position:relative; min-height:420px}
+  .scopewrap{background:var(--panel); border:1px solid var(--edge); border-radius:10px; position:relative; min-height:380px; height:100%; overflow:hidden}
   canvas{display:block; width:100%; height:100%; border-radius:10px; touch-action:manipulation}
-  .scopetag{position:absolute; top:8px; left:12px; font-size:11.5px; color:var(--dim); pointer-events:none; max-width:70%}
-  .clock{position:absolute; top:8px; right:12px; font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; pointer-events:none}
-  .backbtn{position:absolute; left:10px; bottom:10px; font-size:12px; padding:5px 9px; opacity:.85}
-  .audiobtn{position:absolute; right:10px; bottom:10px; font-size:12px; padding:5px 9px; opacity:.9}
+  .scopetag{position:absolute; top:7px; left:12px; font-size:11px; color:var(--dim); pointer-events:none; max-width:72%; z-index:3}
+  .clock{position:absolute; top:7px; right:12px; font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; pointer-events:none; z-index:3}
+  .backbtn{position:absolute; left:10px; bottom:10px; font-size:11.5px; padding:4px 8px; opacity:.85; z-index:3}
+  .audiobtn{position:absolute; right:10px; bottom:10px; font-size:11.5px; padding:4px 8px; opacity:.9; z-index:3}
   .audiobtn[aria-pressed="true"]{border-color:var(--ok); color:var(--ok)}
-  .measure{position:absolute; font-size:12px; font-weight:600; color:var(--sel); pointer-events:none;
-    background:var(--panel); border:1px solid var(--edge); border-radius:6px; padding:2px 7px; white-space:nowrap}
+  .measure{position:absolute; font-size:11.5px; font-weight:600; color:var(--sel); pointer-events:none;
+    background:var(--panel); border:1px solid var(--edge); border-radius:6px; padding:2px 7px; white-space:nowrap; z-index:4}
   .waiting{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    color:var(--dim); font-size:14px; text-align:center; padding:20px; pointer-events:none}
+    color:var(--dim); font-size:14px; text-align:center; padding:20px; pointer-events:none; z-index:2}
 
-  .side{display:flex; flex-direction:column; gap:10px; min-height:0; overflow-y:auto; padding-right:2px}
-  .card{background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:10px}
-  h2{margin:0 0 8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim)}
+  /* Left translucent floating Log window */
+  .logwrap{
+    position:absolute; top:30px; left:10px; bottom:44px;
+    width:min(285px, 38%); max-height:calc(100% - 74px);
+    background:var(--float-bg);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    border:1px solid var(--float-edge); border-radius:8px;
+    padding:6px 8px; display:flex; flex-direction:column;
+    pointer-events:none; z-index:2;
+  }
+  .logwrap.collapsed{bottom:auto; width:auto; padding:4px 7px}
+  .logwrap.collapsed .log{display:none}
 
-  button{font:inherit; cursor:pointer; border-radius:7px; border:1px solid var(--edge);
-    background:var(--panel-2); color:var(--ink); padding:7px 10px}
-  button:disabled{opacity:.42; cursor:default}
-  button.primary{background:var(--live); border-color:var(--live); color:var(--bg); font-weight:600}
-  button.wide{width:100%}
-  .row{display:flex; gap:6px; flex-wrap:wrap}
-  .row > *{flex:1 1 auto}
+  /* Right translucent floating Checklist window */
+  .chkwrap{
+    position:absolute; top:30px; right:10px;
+    width:min(265px, 36%); max-height:calc(100% - 74px);
+    background:var(--float-bg);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    border:1px solid var(--float-edge); border-radius:8px;
+    padding:6px 8px; display:flex; flex-direction:column;
+    pointer-events:none; z-index:2;
+  }
+  .chkwrap.collapsed{width:auto; padding:4px 7px}
+  .chkwrap.collapsed #chk, .chkwrap.collapsed .chkhint{display:none}
 
-  .targets{display:flex; flex-direction:column; gap:5px; max-height:140px; overflow:auto}
-  .tgt{display:flex; align-items:center; gap:8px; padding:5px 8px; border:1px solid var(--edge);
-    border-radius:7px; background:var(--panel-2); cursor:pointer; text-align:left}
-  .tgt.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
-  .tgt .cs,.tgt .sq{font-weight:600; letter-spacing:.03em; font-variant-numeric:tabular-nums}
-  .tgt .meta{color:var(--dim); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums}
-  .badge{font-size:10px; padding:1px 5px; border-radius:4px; border:1px solid currentColor}
-  .b-sec{color:var(--sec)} .b-pri{color:var(--pri)}
+  .floathd{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-bottom:4px; pointer-events:auto;
+  }
+  .collapsed .floathd{margin-bottom:0}
+  .floathd h2{margin:0; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim)}
+  .floattoggle{
+    font-size:10px; padding:1px 6px; border-radius:4px;
+    background:rgba(120,140,165,.14); border:1px solid var(--float-edge); color:var(--dim);
+  }
 
-  label.f{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); margin-bottom:6px}
-  input[type=number]{font:inherit; width:86px; background:var(--panel-2); color:var(--ink);
-    border:1px solid var(--edge); border-radius:6px; padding:5px 7px; text-align:right}
-  input[type=text]{font:inherit; background:var(--panel-2); color:var(--ink);
-    border:1px solid var(--edge); border-radius:6px; padding:6px 8px; width:100%}
-  input[type=range]{width:100%; accent-color:var(--key)}
-  input:focus-visible,button:focus-visible{outline:2px solid var(--key); outline-offset:1px}
-
-  .work{display:flex; flex-direction:column; gap:5px}
-  .work button{display:flex; align-items:center; gap:8px; text-align:left; padding:6px 9px}
-  .work button.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
-  .work .cs{font-weight:600; letter-spacing:.03em}
-  .work .tag{margin-left:auto; font-size:11px}
-  .work .yes{color:var(--ok)} .work .nope{color:var(--live)}
-  .mine .cs{font-size:16px; font-weight:600; letter-spacing:.03em}
-  .mine .st{color:var(--dim); font-size:12px; margin-top:2px}
-  .mine .ok{color:var(--ok); font-weight:600}
-  .mine .no{color:var(--live); font-weight:600}
-
-  .chkblock{border:1px solid var(--edge); border-radius:8px; padding:7px 8px; margin-bottom:7px; background:var(--panel-2)}
-  .chkblock .hd{display:flex; align-items:center; gap:7px; margin-bottom:6px}
-  .chkblock .hd .cs{font-weight:600; letter-spacing:.03em}
-  .chkblock .hd .kind{font-size:10px; padding:1px 5px; border-radius:4px; border:1px solid currentColor; color:var(--dim)}
-  .chkblock .hd .kind.ifr{color:var(--key)} .chkblock .hd .kind.vfr{color:var(--pri)}
-  .chkblock .hd .cnt{margin-left:auto; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums}
-  .chkblock.on{border-color:var(--sel)}
-  .chk{display:flex; flex-wrap:wrap; gap:5px}
-  .chk button{display:flex; align-items:center; gap:5px; padding:4px 8px; font-size:12px; flex:0 0 auto}
-  .chk button[aria-pressed="true"]{border-color:var(--ok); color:var(--ok)}
-  .chk .k{font-weight:700; letter-spacing:.04em}
-  .chk .n{color:var(--dim); font-size:11px}
-  .chk button[aria-pressed="true"] .n{color:var(--ok)}
-  .chkhint{color:var(--dim); font-size:11.5px; margin-top:6px; letter-spacing:.04em}
-
-  .log{flex:1 1 auto; min-height:180px; max-height:40vh; overflow:auto; display:flex; flex-direction:column; gap:3px; font-size:12.5px}
-  .log .e{display:flex; gap:7px}
+  .log{
+    flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:flex; flex-direction:column; gap:2.5px;
+    font-size:11.5px; pointer-events:auto; padding-right:2px;
+    text-shadow:0 1px 2px rgba(0,0,0,.45);
+  }
+  :root:not([data-theme="dark"]) .log{text-shadow:none}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .log{text-shadow:0 1px 2px rgba(0,0,0,.45)}
+  }
+  .log .e{display:flex; gap:6px}
   .log .t{color:var(--dim); font-variant-numeric:tabular-nums; flex:none}
   .log .me{color:var(--key)} .log .pilot{color:var(--ink)}
   .log .sys{color:var(--dim); font-style:italic} .log .alert{color:var(--warn); font-weight:600}
-  .hint{color:var(--dim); font-size:12px; margin-top:6px}
+
+  #chk{overflow-y:auto; pointer-events:auto; max-height:52vh}
+  .chkblock{border:1px solid var(--float-edge); border-radius:7px; padding:5px 6px; margin-bottom:5px; background:rgba(22,33,44,.55)}
+  :root:not([data-theme="dark"]) .chkblock{background:rgba(255,255,255,.65)}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .chkblock{background:rgba(22,33,44,.55)}
+  }
+  .chkblock:last-child{margin-bottom:0}
+  .chkblock .hd{display:flex; align-items:center; gap:5px; margin-bottom:4px; cursor:pointer}
+  .chkblock .hd .cs{font-weight:600; font-size:12px; letter-spacing:.03em}
+  .chkblock .hd .kind{font-size:9.5px; padding:0 4px; border-radius:3px; border:1px solid currentColor; color:var(--dim)}
+  .chkblock .hd .kind.ifr{color:var(--key)} .chkblock .hd .kind.vfr{color:var(--pri)}
+  .chkblock .hd .cnt{margin-left:auto; font-size:10.5px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .chkblock.on{border-color:var(--sel)}
+  .chk{display:flex; flex-wrap:wrap; gap:3.5px}
+  .chk button{display:flex; align-items:center; gap:3px; padding:2.5px 6px; font-size:11px; flex:0 0 auto; border-radius:5px}
+  .chk button[aria-pressed="true"]{border-color:var(--ok); color:var(--ok); background:rgba(79,174,119,.12)}
+  .chk .k{font-weight:700; letter-spacing:.03em}
+  .chk .n{color:var(--dim); font-size:10px}
+  .chk button[aria-pressed="true"] .n{color:var(--ok)}
+  .chkhint{color:var(--dim); font-size:10px; margin-top:4px; letter-spacing:.03em; pointer-events:auto}
+
+  /* Compact zero-scroll right sidebar */
+  .side{display:flex; flex-direction:column; gap:6px; height:100%; overflow:hidden}
+  .card{background:var(--panel); border:1px solid var(--edge); border-radius:8px; padding:7px 8px; flex-shrink:0}
+  h2{margin:0 0 5px; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); display:flex; align-items:center; justify-content:space-between}
+
+  button{font:inherit; cursor:pointer; border-radius:5px; border:1px solid var(--edge);
+    background:var(--panel-2); color:var(--ink); padding:4px 7px; font-size:12px}
+  button:disabled{opacity:.42; cursor:default}
+  button.primary{background:var(--live); border-color:var(--live); color:var(--bg); font-weight:600}
+  button.wide{width:100%}
+  .row{display:flex; gap:4px; flex-wrap:nowrap; align-items:center}
+  .row > *{flex:1 1 auto}
+
+  .cmdrow{display:flex; align-items:center; gap:4px; margin-bottom:5px}
+  .cmdrow:last-child{margin-bottom:0}
+  .cmdrow .lbl{font-size:11px; color:var(--dim); width:30px; flex:none}
+  .cmdrow input[type=number], .cmdrow input[type=text]{
+    width:58px; flex:none; padding:3px 5px; font-size:12px; text-align:right;
+    background:var(--panel-2); color:var(--ink); border:1px solid var(--edge); border-radius:5px;
+  }
+  .cmdrow button{flex:1 1 0; padding:4px 5px; font-size:11.5px; white-space:nowrap}
+
+  .targets{display:flex; flex-direction:column; gap:3.5px; max-height:92px; overflow-y:auto}
+  .tgt{display:flex; align-items:center; gap:6px; padding:3.5px 6px; border:1px solid var(--edge);
+    border-radius:5px; background:var(--panel-2); cursor:pointer; text-align:left; font-size:11.5px}
+  .tgt.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
+  .tgt .cs,.tgt .sq{font-weight:600; letter-spacing:.03em; font-variant-numeric:tabular-nums}
+  .tgt .meta{color:var(--dim); font-size:11px; margin-left:auto; font-variant-numeric:tabular-nums}
+  .badge{font-size:9.5px; padding:0 4px; border-radius:3px; border:1px solid currentColor}
+  .b-sec{color:var(--sec)} .b-pri{color:var(--pri)}
+
+  label.f{display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:11.5px; color:var(--dim); margin-bottom:3px}
+  input[type=text]{font:inherit; background:var(--panel-2); color:var(--ink);
+    border:1px solid var(--edge); border-radius:5px; padding:4px 6px; width:100%}
+  input[type=range]{width:100%; accent-color:var(--key); margin:2px 0; height:14px}
+  input:focus-visible,button:focus-visible{outline:2px solid var(--key); outline-offset:1px}
+
+  .work{display:flex; flex-wrap:wrap; gap:4px}
+  .work button{display:flex; align-items:center; gap:5px; text-align:left; padding:3.5px 7px; font-size:11.5px; flex:1 1 calc(50% - 4px)}
+  .work button.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
+  .work .cs{font-weight:600; letter-spacing:.02em}
+  .work .tag{margin-left:auto; font-size:10px}
+  .work .yes{color:var(--ok)} .work .nope{color:var(--live)}
+
+  .hint{color:var(--dim); font-size:11px; margin-top:3px; line-height:1.25}
   .sel{font:inherit; width:100%; background:var(--panel-2); color:var(--ink);
-    border:1px solid var(--edge); border-radius:7px; padding:6px 8px}
-  .sw{display:flex; align-items:center; gap:8px; font-size:12.5px}
-  .sw input{accent-color:var(--live)}
+    border:1px solid var(--edge); border-radius:5px; padding:3px 6px; font-size:11.5px}
 
   .gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px; z-index:20}
   .gate .box{background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:20px; max-width:430px; width:100%}
@@ -153,6 +212,26 @@
     <canvas id="scope"></canvas>
     <div class="scopetag" id="scopetag">NMN ARRIVAL · 30 NM · rings 5 NM · MVA 2500 inside 5 NM, 120/13, 220/25 · 2000 at 185/15 (3 NM) · 3400 northwest beyond 20 NM · 1500 elsewhere</div>
     <div class="clock" id="clock">00:00</div>
+
+    <!-- Left Floating Translucent Log -->
+    <div class="logwrap" id="logWrap">
+      <div class="floathd">
+        <h2>Log</h2>
+        <button class="floattoggle" id="logToggle" type="button">Hide</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- Right Floating Translucent Checklist -->
+    <div class="chkwrap" id="chkWrap">
+      <div class="floathd">
+        <h2>Checklist</h2>
+        <button class="floattoggle" id="chkToggle" type="button">Hide</button>
+      </div>
+      <div id="chk"></div>
+      <div class="chkhint">VFR: W C R V · LC · MACO · POS · L &nbsp;|&nbsp; IFR: D V · LC · MACO · POS · L</div>
+    </div>
+
     <div class="waiting" id="waiting" hidden>Connecting to controller…</div>
     <button class="backbtn" id="back">Change role</button>
     <button class="audiobtn" id="audio" aria-pressed="false">🔇 Audio off</button>
@@ -160,102 +239,106 @@
   </div>
 
   <div class="side" id="side">
+    <!-- Top Sim Control Card -->
     <div class="card">
-      <div class="row">
+      <div class="row" style="margin-bottom:4px">
         <button class="primary" id="start">Start simulator</button>
         <button id="pause" disabled>Pause</button>
+        <span style="font-size:11px; color:var(--dim); flex:none; margin-left:4px">Spd <b id="rateV" style="color:var(--ink)">1.0×</b></span>
+        <input type="range" id="rate" min="0.2" max="3" step="0.1" value="1" style="width:70px; flex:none">
       </div>
-      <label class="f" for="rate" style="margin-top:10px">Sim speed <span id="rateV" style="color:var(--ink)">1.0×</span></label>
-      <input type="range" id="rate" min="0.2" max="3" step="0.1" value="1">
-      <div class="hint" id="status">Three targets. One of them is yours — find it by asking for position, heading and altitude.</div>
+      <div class="hint" id="status">Three targets. Find yours by asking position, heading and altitude.</div>
     </div>
 
+    <!-- Personal Voice Card (only visible in Voice Mode) -->
     <div class="card" id="voiceCard" hidden>
-      <h2>Personal Voice Mode</h2>
-      <div class="row">
-        <button class="primary" id="micToggle" aria-pressed="false" title="Press and hold to talk; release to stop">🎙 Hold to Talk</button>
-        <button id="voiceHelp">Phraseology / shortcuts</button>
+      <h2>
+        <span>Personal Voice Mode</span>
+        <button id="voiceHelp" type="button" style="font-size:10px; padding:1px 6px">Help</button>
+      </h2>
+      <div class="row" style="margin-bottom:4px">
+        <button class="primary" id="micToggle" aria-pressed="false" style="flex:0 0 auto">🎙 Hold to Talk</button>
+        <input type="text" id="voiceCommand" placeholder="e.g. turn right heading 270" autocomplete="off" spellcheck="false" style="flex:1 1 auto">
+        <button id="runVoiceCommand" style="flex:0 0 auto">Send</button>
+        <button id="clearVoiceCommand" style="flex:0 0 auto; padding:4px 6px">✕</button>
       </div>
-      <div class="hint" id="micStatus">Push-to-talk: press and hold the microphone button while speaking, then release. Checklist phrases are matched approximately to help with accents.</div>
-      <label class="f" for="voiceCommand" style="margin-top:8px">Command / transcript</label>
-      <input type="text" id="voiceCommand" placeholder="e.g. turn right heading 270" autocomplete="off" spellcheck="false">
-      <div class="row" style="margin-top:6px">
-        <button class="wide" id="runVoiceCommand">Execute command</button>
-        <button id="clearVoiceCommand">Clear</button>
-      </div>
-      <div class="hint" id="voiceFeedback">Hold the microphone button while speaking, then release. Checklist phrases use accent-tolerant matching; unrecognized commands do not change aircraft state.</div>
+      <div class="hint" id="micStatus" hidden></div>
+      <div class="hint" id="voiceFeedback">Hold mic to speak or type command.</div>
       <div id="phraseHelp" class="hint" hidden>
-        <b>Supported:</b> “climb and maintain 3000”, “descend and maintain 2000”, “maintain 3000”, “turn left/right heading 270”, “reduce speed to 140”, “say position/heading/altitude/intentions/all”, “select [callsign]”, “[callsign] turn right heading 270”, “start simulator”, “pause/resume”.<br>
-        <b>Shortcuts:</b> 1 climb · 2 descend · 3 maintain · 4 left · 5 right · 6 speed · P position · H heading · A altitude · I intentions · Space pause.
+        <b>PDF Mappings:</b> weather(W), radar contact(R), vector(V), lost comm(LC), missed approach/climb out(MACO), position(POS), landing check(L).<br>
+        <b>Keys:</b> 1 climb · 2 desc · 3 maint · 4 left · 5 right · 6 spd · P/H/A/I.
       </div>
     </div>
 
+    <!-- My Aircraft & Targets Combined Compact Card -->
     <div class="card">
-      <h2>My aircraft</h2>
+      <h2>
+        <span>My Aircraft</span>
+        <span style="display:flex; gap:4px">
+          <button id="addAc" style="font-size:10.5px; padding:1px 6px">+ VFR</button>
+          <button id="addIfr" style="font-size:10.5px; padding:1px 6px">+ IFR</button>
+        </span>
+      </h2>
       <div class="work" id="worklist"></div>
       <div class="hint" id="mine">Press start for a new scenario.</div>
-    </div>
 
-    <div class="card">
-      <h2>Targets on scope</h2>
+      <h2 style="margin-top:6px">
+        <span>Targets on Scope</span>
+        <button id="ident" style="font-size:10.5px; padding:1.5px 7px" disabled>Radar Contact (Ident)</button>
+      </h2>
       <div class="targets" id="targets"></div>
-      <button class="wide" id="ident" style="margin-top:8px" disabled>Radar contact — identify selected</button>
-      <div class="row" style="margin-top:6px">
-        <button id="addAc">Add VFR</button>
-        <button id="addIfr">Add IFR</button>
-      </div>
     </div>
 
+    <!-- Ultra-Compact Inline Control Instructions -->
     <div class="card">
-      <h2>Checklist</h2>
-      <div id="chk"></div>
-      <div class="chkhint">VFR: W C R V · LC · MACO · POS · L &nbsp;·&nbsp; IFR: D V · LC · MACO · POS · L · Climbout: V · MACO · POS · L</div>
-    </div>
+      <h2>Control Instructions</h2>
 
-    <div class="card">
-      <h2>Control instructions</h2>
-      <label class="f" for="alt">Altitude <input type="number" id="alt" min="500" max="12000" step="100" value="3000"></label>
-      <div class="row" style="margin-bottom:8px">
-        <button data-cmd="climb">Climb and maintain</button>
-        <button data-cmd="descend">Descend and maintain</button>
-        <button data-cmd="maintain">Maintain</button>
+      <!-- Altitude Row -->
+      <div class="cmdrow">
+        <span class="lbl">Alt</span>
+        <input type="number" id="alt" min="500" max="12000" step="100" value="3000">
+        <button data-cmd="climb" title="Climb and maintain">↑ Climb</button>
+        <button data-cmd="descend" title="Descend and maintain">↓ Desc</button>
+        <button data-cmd="maintain" title="Maintain altitude">= Maint</button>
       </div>
-      <label class="f" for="hdg">Heading <input type="number" id="hdg" min="1" max="360" step="5" value="160"></label>
-      <div class="row" style="margin-bottom:8px">
-        <button data-cmd="left">Turn left heading</button>
-        <button data-cmd="right">Turn right heading</button>
-      </div>
-      <label class="f" for="spdIn">Reduce speed to <input type="number" id="spdIn" min="60" max="350" step="5" value="140"> kt</label>
-      <div class="row" style="margin-bottom:8px">
-        <button class="wide" data-cmd="speed">Reduce speed to selected value</button>
-      </div>
-      <label class="f" for="sqIn">Squawk <input type="text" id="sqIn" inputmode="numeric" maxlength="4" value="0461" spellcheck="false" style="width:72px; text-align:right"></label>
-      <div class="row" style="margin-bottom:8px">
-        <button class="wide" data-cmd="squawk">Squawk (beacon code)</button>
-      </div>
-      <h2 style="margin-top:4px">Requests</h2>
-      <div class="row">
-        <button data-cmd="pos">Say position</button>
-        <button data-cmd="hdgq">Say heading</button>
-      </div>
-      <div class="row" style="margin-top:6px">
-        <button data-cmd="altq">Say altitude</button>
-        <button data-cmd="int">Say intentions</button>
-      </div>
-      <div class="row" style="margin-top:6px">
-        <button class="wide" data-cmd="all">Say all (position, heading, altitude)</button>
-      </div>
-      <label class="f" for="boomMode" style="margin-top:10px">On violation (above 5,000 or below MVA)</label>
-      <select id="boomMode" class="sel">
-        <option value="continue" selected>Explosion and continue — aircraft turns red</option>
-        <option value="remove">Explosion and remove the aircraft</option>
-        <option value="off">No explosion, log the alert only</option>
-      </select>
-    </div>
 
-    <div class="card" style="display:flex; flex-direction:column; min-height:0; flex:1 1 auto">
-      <h2>Log</h2>
-      <div class="log" id="log"></div>
+      <!-- Heading Row -->
+      <div class="cmdrow">
+        <span class="lbl">Hdg</span>
+        <input type="number" id="hdg" min="1" max="360" step="5" value="160">
+        <button data-cmd="left">↰ Turn Left</button>
+        <button data-cmd="right">↱ Turn Right</button>
+      </div>
+
+      <!-- Speed & Squawk Merged Row -->
+      <div class="cmdrow">
+        <span class="lbl">Spd</span>
+        <input type="number" id="spdIn" min="60" max="350" step="5" value="140" style="width:48px">
+        <button data-cmd="speed" style="flex:0 0 auto; padding:4px 6px">Slow</button>
+        <span class="lbl" style="width:auto; margin-left:4px">Sqk</span>
+        <input type="text" id="sqIn" inputmode="numeric" maxlength="4" value="0461" spellcheck="false" style="width:46px">
+        <button data-cmd="squawk" style="flex:0 0 auto; padding:4px 6px">Set</button>
+      </div>
+
+      <!-- Single-Row Quick Requests -->
+      <div class="cmdrow" style="margin-top:6px">
+        <span class="lbl">Ask</span>
+        <button data-cmd="pos" title="Say position">Pos</button>
+        <button data-cmd="hdgq" title="Say heading">Hdg</button>
+        <button data-cmd="altq" title="Say altitude">Alt</button>
+        <button data-cmd="int" title="Say intentions">Int</button>
+        <button data-cmd="all" title="Say position, heading and altitude" style="font-weight:600; color:var(--key)">All</button>
+      </div>
+
+      <!-- Violation Mode Compact Row -->
+      <div class="cmdrow" style="margin-top:6px">
+        <span class="lbl" style="width:auto">Bust</span>
+        <select id="boomMode" class="sel">
+          <option value="continue" selected>Explode &amp; turn red</option>
+          <option value="remove">Explode &amp; remove</option>
+          <option value="off">Alert only</option>
+        </select>
+      </div>
     </div>
   </div>
 </div>
@@ -264,7 +347,9 @@
   "use strict";
   var RANGE = 30, CEIL = 5000;
   var cv = document.getElementById('scope'), ctx = cv.getContext('2d');
-  var logEl = document.getElementById('log'), tgtEl = document.getElementById('targets');
+  var logEl = document.getElementById('log'), logWrap = document.getElementById('logWrap'), logToggle = document.getElementById('logToggle');
+  var chkEl = document.getElementById('chk'), chkWrap = document.getElementById('chkWrap'), chkToggle = document.getElementById('chkToggle');
+  var tgtEl = document.getElementById('targets');
   var statusEl = document.getElementById('status'), clockEl = document.getElementById('clock');
   var startBtn = document.getElementById('start'), pauseBtn = document.getElementById('pause');
   var identBtn = document.getElementById('ident'), mineEl = document.getElementById('mine');
@@ -272,7 +357,7 @@
   var sqIn = document.getElementById('sqIn');
   var spdIn = document.getElementById('spdIn');
   var rateIn = document.getElementById('rate'), rateV = document.getElementById('rateV');
-  var boomMode = document.getElementById('boomMode'), chkEl = document.getElementById('chk');
+  var boomMode = document.getElementById('boomMode');
   var waitEl = document.getElementById('waiting'), scopetag = document.getElementById('scopetag');
   var backBtn = document.getElementById('back'), measEl = document.getElementById('measure');
   var audioBtn = document.getElementById('audio');
@@ -286,9 +371,18 @@
   var addAcBtn = document.getElementById('addAc'), addIfrBtn = document.getElementById('addIfr');
 
   var role = null, roomName = 'nmn', room = null, looping = false, voiceMode = false;
-  var recognition = null, micListening = false, micHeld = false, micPermissionStream = null, lastVoiceCommand = '';
+  var recognition = null, micListening = false, micHeld = false, micPermissionStream = null;
   var AC = [], mine = null, sel = null, running = false, t0 = 0, simSec = 0, rate = 1;
   var cx = 0, cy = 0, ppn = 1, tries = 0, booms = [], remote = null, lastRx = 0, trails = {};
+
+  logToggle.addEventListener('click', function(){
+    var collapsed = logWrap.classList.toggle('collapsed');
+    logToggle.textContent = collapsed ? 'Show' : 'Hide';
+  });
+  chkToggle.addEventListener('click', function(){
+    var collapsed = chkWrap.classList.toggle('collapsed');
+    chkToggle.textContent = collapsed ? 'Show' : 'Hide';
+  });
 
   var TYPES = [
     {t:'F-18', spd:300}, {t:'T-45', spd:260}, {t:'EA-18', spd:300}, {t:'AV-8', spd:280},
@@ -311,22 +405,21 @@
     return 'PL ' + String(Math.floor(rnd(1,100))).padStart(2,'0');
   }
   var INT = ['a PAR to a full stop','an ASR to a low approach','a PAR for touch and go','a full stop, straight in'];
-  var SQ = ['0461','0462','0463','0464','0465','0466','0467'];
 
   var CHK_VFR = [
     {k:'W',n:'weather'}, {k:'C',n:'clearance'}, {k:'R',n:'radar contact'}, {k:'V',n:'vector'},
-    {k:'LC',n:'lost comm'}, {k:'MACO',n:'missed approach / climb out'},
+    {k:'LC',n:'lost comm'}, {k:'MACO',n:'MA / climb out'},
     {k:'POS',n:'position'}, {k:'L',n:'landing check'}
   ];
   var CHK_IFR = [
     {k:'D',n:'descend'}, {k:'V',n:'vector'},
-    {k:'LC',n:'lost comm'}, {k:'MACO',n:'missed approach / climb out'},
+    {k:'LC',n:'lost comm'}, {k:'MACO',n:'MA / climb out'},
     {k:'POS',n:'position'}, {k:'L',n:'landing check'}
   ];
   function listFor(a){
     if(a && (a.phase === 'climbout' || a.phase === 'ready')) return [
       {k:'R',n:'radar contact'},
-      {k:'MACO',n:'missed approach / climb out'},
+      {k:'MACO',n:'MA / climb out'},
       {k:'V',n:'vector'},
       {k:'POS',n:'position'},
       {k:'L',n:'landing check'}
@@ -352,7 +445,6 @@
   function rangeOf(a){ return Math.sqrt(a.x*a.x + a.y*a.y); }
   function bearingOf(a){ return norm(Math.atan2(a.x, a.y)*180/Math.PI); }
 
-  // Dogleg/final corridor: 8 NM gate on bearing 340, doglegs 320/360, 2.2 NM corridor.
   var GATE8 = {x:8*Math.sin(340*Math.PI/180), y:8*Math.cos(340*Math.PI/180)};
   var RWY2 = {x:2*Math.sin(340*Math.PI/180), y:2*Math.cos(340*Math.PI/180)};
   function doglegEndPt(hdg,maxR){
@@ -445,14 +537,15 @@
       var hd = document.createElement('div'); hd.className = 'hd';
       hd.innerHTML = '<span class="cs">' + a.cs + '</span>' +
         '<span class="kind ' + (a.kind === 'ifr' ? 'ifr">IFR' : 'vfr">VFR') + '</span>' +
-        '<span class="cnt">' + n + ' / ' + items.length + '</span>';
+        '<span class="cnt">' + n + '/' + items.length + '</span>';
       hd.addEventListener('click', function(){ mine = a; renderChk(); renderMine(); renderTargets(); });
       box.appendChild(hd);
       var row = document.createElement('div'); row.className = 'chk';
       items.forEach(function(c){
         var b = document.createElement('button');
         b.setAttribute('aria-pressed', a.chk[c.k] ? 'true' : 'false');
-        b.innerHTML = '<span class="k">' + c.k + '</span><span class="n">' + c.n + '</span>';
+        b.title = c.n;
+        b.innerHTML = '<span class="k">' + c.k + '</span>';
         b.addEventListener('click', function(){
           a.chk[c.k] = !a.chk[c.k];
           if(c.k === 'W' && a.chk[c.k] && running){
@@ -471,13 +564,13 @@
       box.appendChild(row);
       if(a.ctl && allChkDone(a) && isInDogleg(a) && a.phase !== 'inbound'){
         var co=document.createElement('button'); co.className='wide';
-        co.style.cssText='margin-top:7px;background:var(--live);border-color:var(--live);color:var(--bg);font-weight:700';
-        co.textContent='Coordinate · ' + a.cs + ' (' + a.intent + ')';
+        co.style.cssText='margin-top:5px;background:var(--live);border-color:var(--live);color:var(--bg);font-weight:700;font-size:11px;padding:3px 6px';
+        co.textContent='Coordinate · ' + a.cs;
         co.addEventListener('click',function(){ coordinateAircraft(a); }); box.appendChild(co);
       }
       if(a.ctl && a.phase === 'inbound' && rangeOf(a) <= 5 && !a.parPrompted){
-        var par=document.createElement('button'); par.className='wide'; par.style.cssText='margin-top:7px;border-color:var(--live);color:var(--live);font-weight:700';
-        par.textContent='5 NM Final Gate · Coordinate PAR / Tower · ' + a.cs;
+        var par=document.createElement('button'); par.className='wide'; par.style.cssText='margin-top:5px;border-color:var(--live);color:var(--live);font-weight:700;font-size:11px;padding:3px 6px';
+        par.textContent='5 NM Gate · Handoff PAR/TWR';
         par.addEventListener('click',function(){ a.parPrompted=true; log('me','"' + a.cs + ', request PAR/Tower coordination at the 5 mile final gate."'); log('pilot','"' + a.cs + ', roger, ready for PAR."'); par.disabled=true; }); box.appendChild(par);
       }
       chkEl.appendChild(box);
@@ -498,13 +591,12 @@
       log('pilot','"' + a.cs + ', landing complete, aircraft leaving the scope."');
       removeAircraft(a,a.cs + ' completed full-stop landing and was removed from the scope.'); return;
     }
-    // Intercept the 160° final approach course using the shortest turn direction.
     var course = 160;
     var signedDelta = ((course - norm(a.hdg) + 540) % 360) - 180;
     a.phase='inbound'; a.tHdg=course;
     a.turn = Math.abs(signedDelta) < 0.5 ? 0 : (signedDelta > 0 ? 1 : -1);
     a.tAlt=Math.min(a.alt,2000); a.parPrompted=false;
-    a.chk.L = !!a.chk.L; // retain landing check and approach-speed setting
+    a.chk.L = !!a.chk.L;
     log('me','"' + a.cs + ', coordinate for PAR approach, intercept heading one six zero, shortest turn to final course."');
     log('pilot','"' + a.cs + ', turning ' + (signedDelta > 0.5 ? 'right' : signedDelta < -0.5 ? 'left' : 'no turn') + ' to intercept the 160° final course for ' + a.intent + '."');
     statusEl.textContent=a.cs+' intercepting the 160° final approach course.';
@@ -641,14 +733,12 @@
       var legal = (a.alt <= CEIL + 20) && (a.alt >= m - 50 || nm <= 2);
       if(legal) a.boomed = false;
 
-      // Only controller-owned aircraft are subject to training violation alerts/explosions.
       if(a.ctl && a.alt > CEIL + 20 && !a.boomed){
         var before = AC.length;
         explode(a,'TOOK IT ABOVE 5,000 — out of the arrival airspace');
         if(AC.length < before){ i--; continue; }
       }
 
-      // Suppress MVA/low-altitude alerts during a coordinated approach and its missed-approach climbout.
       if(a.ctl && a.phase !== 'inbound' && a.phase !== 'climbout' && a.alt < m - 50 && nm > 2){
         if(simSec - a.warn > 22){
           a.warn = simSec;
@@ -662,7 +752,6 @@
         }
       } else { a.deadline = 0; }
 
-      // Approach/GA state machine runs only for controlled aircraft.
       if(a.ctl && a.phase === 'inbound'){
         if(nm <= 0.6){
           if(/full stop/i.test(a.intent)){
@@ -674,14 +763,13 @@
           a.tHdg=220; a.turn=1; a.tAlt=1500; a.chk={R:false,MACO:false,V:false,POS:false,L:false};
           a.tSpd=a.initSpd; a.parPrompted=false;
           log('pilot','"' + a.cs + ', missed approach, climbing out, heading two two zero, maintaining one thousand five hundred; request vectors for a PAR to a full stop."');
-          log('sys',a.cs+' is in IFR climbout. Checklist reset to R · MACO · V · POS · L; re-vector toward the dogleg.');
+          log('sys',a.cs+' is in IFR climbout. Checklist reset to R · MACO · V · POS · L.');
           renderChk(); renderTargets();
         }
       } else if(a.ctl && a.phase === 'climbout'){
-        // Once the aircraft is back in the dogleg, it can be coordinated again after its new checklist is complete.
         if(isInDogleg(a)){
           a.phase='ready';
-          log('sys',a.cs+' returned to the dogleg; IFR climbout checklist remains active. Complete R · MACO · V · POS · L, then coordinate again.');
+          log('sys',a.cs+' returned to dogleg; complete R · MACO · V · POS · L, then coordinate.');
           renderChk();
         }
       }
@@ -698,14 +786,13 @@
           AC.splice(i,1); i--; if(sel === a) sel = null;
           var rest = AC.filter(function(x){ return x.ctl; });
           if(a === mine) mine = rest[0] || null;
-          if(!rest.length){ running = false; pauseBtn.disabled = true; statusEl.textContent = 'Scenario over — press start for a new one.'; }
+          if(!rest.length){ running = false; pauseBtn.disabled = true; statusEl.textContent = 'Scenario over — press start.'; }
         } else {
           AC.splice(i,1); i--; if(sel === a) sel = null;
         }
         renderTargets(); renderMine(); renderChk();
       }
     }
-    // Refresh checklist coordination prompts periodically as aircraft enter/leave the dogleg and 5 NM gate.
     if(simSec % 1 < dt * Math.max(rate, 0.2)) renderChk();
     for(var b=0;b<booms.length;b++){
       var bo = booms[b]; bo.age += dt;
@@ -783,7 +870,6 @@
     ctx.textAlign = 'left'; ctx.fillStyle = css('--dim');
     ctx.fillText('NMN · RWY 16', cx + 10, cy + 12);
 
-    // Final approach course (2 NM to 8 NM along 340°) + Doglegs from 8 NM out along 320° and 360° stopping at 20 NM
     var f1 = polar(340,2), f8 = polar(340,8);
     var x8 = 8*Math.sin(340*Math.PI/180), y8 = 8*Math.cos(340*Math.PI/180);
     function doglegEnd(hdg, maxR){
@@ -949,27 +1035,27 @@
     work.forEach(function(a){
       var b = document.createElement('button');
       b.className = (a === mine ? 'on' : '');
-      b.innerHTML = '<span class="cs">' + a.cs + '</span><span class="n" style="color:var(--dim);font-size:11.5px">' +
-        a.type + (a.ifr ? ' · IFR' : '') + '</span><span class="tag ' + (a.ident ? 'yes">IDENT' : 'nope">UNIDENT') + '</span>';
+      b.innerHTML = '<span class="cs">' + a.cs + '</span><span class="n" style="color:var(--dim);font-size:10.5px">' +
+        a.type + (a.kind === 'ifr' ? '·IFR' : '') + '</span><span class="tag ' + (a.ident ? 'yes">ID' : 'nope">UNID') + '</span>';
       b.addEventListener('click', function(){ mine = a; renderMine(); renderTargets(); renderChk(); });
       workEl.appendChild(b);
     });
     mineEl.textContent = mine
       ? (mine.ident
-          ? mine.cs + ' is identified · ' + (mine.mode === 'secondary' ? 'secondary, squawk ' + mine.squawk : 'primary, radar only')
-          : mine.cs + ' is not identified yet — instructions still go to it.')
+          ? mine.cs + ' identified · ' + (mine.mode === 'secondary' ? 'sqk ' + mine.squawk : 'primary')
+          : mine.cs + ' unidentified — instructions still go to it.')
       : '';
   }
   function renderTargets(){
     if(role !== 'ctl') return;
     tgtEl.innerHTML = '';
-    if(!AC.length){ tgtEl.innerHTML = '<div class="hint">No targets. Press start.</div>'; return; }
+    if(!AC.length){ tgtEl.innerHTML = '<div class="hint">No targets.</div>'; return; }
     AC.forEach(function(a,i){
       var b = document.createElement('button');
       b.className = 'tgt' + (a === sel ? ' on' : '');
       var left = (a.ctl && a.ident) ? '<span class="cs">' + a.cs + '</span>'
-        : (a.mode === 'secondary' ? '<span class="sq">' + a.squawk + '</span>' : '<span class="sq">TARGET ' + (i+1) + '</span>');
-      var meta = a.mode === 'secondary' ? Math.round(a.alt/100) + ' · ' + Math.round(a.spd) + ' kt'
+        : (a.mode === 'secondary' ? '<span class="sq">' + a.squawk + '</span>' : '<span class="sq">TGT ' + (i+1) + '</span>');
+      var meta = a.mode === 'secondary' ? Math.round(a.alt/100) + ' · ' + Math.round(a.spd) + 'kt'
         : (a.reported != null ? '(' + Math.round(a.reported/100) + ')' : 'no data');
       b.innerHTML = left + '<span class="badge ' + (a.mode === 'secondary' ? 'b-sec">SEC' : 'b-pri">PRI') +
         '</span>' + (a.violated ? '<span class="badge" style="color:var(--warn)">BUST</span>' : '') +
@@ -990,8 +1076,8 @@
 
     if(kind === 'climb' || kind === 'descend' || kind === 'maintain'){
       if(!(alt >= 500 && alt <= 12000)){ log('sys','Altitude must be 500–12,000.'); return; }
-      if(kind === 'climb' && alt < a.alt - 100){ log('sys','That is below the aircraft — use descend and maintain.'); return; }
-      if(kind === 'descend' && alt > a.alt + 100){ log('sys','That is above the aircraft — use climb and maintain.'); return; }
+      if(kind === 'climb' && alt < a.alt - 100){ log('sys','Below aircraft — use descend.'); return; }
+      if(kind === 'descend' && alt > a.alt + 100){ log('sys','Above aircraft — use climb.'); return; }
       a.tAlt = kind === 'maintain' ? (alt || a.alt) : alt;
       var verb = kind === 'climb' ? 'CLIMB AND MAINTAIN' : kind === 'descend' ? 'DESCEND AND MAINTAIN' : 'MAINTAIN';
       log('me','"' + a.cs + ', ' + verb + ' ' + spokenAlt(a.tAlt).toUpperCase() + '."');
@@ -1000,8 +1086,8 @@
       if(kind === 'descend') tick(a,'D');
       if(kind === 'climb') tick(a,'MACO');
       var m = mvaAt(bearingOf(a), rangeOf(a));
-      if(a.tAlt > CEIL) log('alert','That is above 5,000 — it will leave the arrival airspace.');
-      else if(a.tAlt < m - 50) log('alert','Assigned altitude is below the ' + fmtAlt(m) + ' MVA for that area.');
+      if(a.tAlt > CEIL) log('alert','Above 5,000 — leaving arrival airspace.');
+      else if(a.tAlt < m - 50) log('alert','Assigned altitude is below ' + fmtAlt(m) + ' MVA.');
     }
     else if(kind === 'left' || kind === 'right'){
       if(!(hdg >= 1 && hdg <= 360)){ log('sys','Heading must be 001–360.'); return; }
@@ -1009,11 +1095,10 @@
       log('me','"' + a.cs + ', TURN ' + (kind === 'left' ? 'LEFT' : 'RIGHT') + ' HEADING ' + hdg3(hdg) + '."');
       log('pilot','"' + (kind === 'left' ? 'Left' : 'Right') + ' heading ' + hdg3(hdg) + ', ' + a.cs + '."');
       tick(a,'V');
-      if(!a.ident) log('sys','Watch which target starts the turn.');
     }
     else if(kind === 'speed'){
       var requestedSpeed=Math.round(Number(spdIn.value));
-      if(!(requestedSpeed >= 60 && requestedSpeed <= 350)){ log('sys','Speed must be between 60 and 350 knots.'); return; }
+      if(!(requestedSpeed >= 60 && requestedSpeed <= 350)){ log('sys','Speed must be 60–350 kt.'); return; }
       a.tSpd=requestedSpeed;
       log('me','"' + a.cs + ', REDUCE SPEED TO ' + requestedSpeed + ' KNOTS."');
       log('pilot','"Reducing speed to ' + requestedSpeed + ' knots, ' + a.cs + '."');
@@ -1021,17 +1106,16 @@
     else if(kind === 'squawk'){
       var code = String(sqIn.value || '').trim();
       if(a.mode !== 'secondary'){
-        log('sys','Negative beacon — ' + a.cs + ' is a primary target, no transponder to assign a code to.');
+        log('sys','Negative beacon — ' + a.cs + ' is primary only.');
         return;
       }
-      if(!/^[0-7]{4}$/.test(code)){ log('sys','Beacon codes are four digits, 0 through 7.'); return; }
-      if(/^(7500|7600|7700)$/.test(code)){ log('sys','7500 / 7600 / 7700 are emergency codes — pick another.'); return; }
+      if(!/^[0-7]{4}$/.test(code)){ log('sys','Beacon codes are 4 digits (0–7).'); return; }
+      if(/^(7500|7600|7700)$/.test(code)){ log('sys','Emergency code not allowed.'); return; }
       var clash = code === '1200' ? null : AC.filter(function(x){ return x !== a && x.squawk === code; })[0];
-      if(clash){ log('sys','Code ' + code + ' is already on another target — pick a different one.'); return; }
+      if(clash){ log('sys','Code ' + code + ' already assigned.'); return; }
       a.squawk = code;
       log('me','"' + a.cs + ', SQUAWK ' + code + '."');
       log('pilot','"Squawk ' + code + ', ' + a.cs + '."');
-      if(!a.ident) log('sys','Look for the new code in the data blocks.');
     }
     else if(kind === 'pos'){
       log('me','"' + a.cs + ', SAY POSITION."');
@@ -1069,11 +1153,23 @@
     b.addEventListener('click', function(){ cmd(b.dataset.cmd); });
   });
 
-  // ---------- personal voice mode: conservative command parsing + auditable feedback ----------
+  // ---------- personal voice mode: PDF phraseology normalization ----------
   function normalizeVoiceText(s){
-    return String(s || '').toLowerCase().replace(/[,.!?]/g,' ').replace(/\bdegrees?\b/g,' ')
-      .replace(/\bknots?\b/g,' ').replace(/\bflight level\b/g,' flightlevel ')
-      .replace(/\s+/g,' ').trim();
+    var text = String(s || '').toLowerCase()
+      .replace(/[,.!?]/g, ' ')
+      .replace(/\bdegrees?\b/g, ' ')
+      .replace(/\bknots?\b/g, ' ')
+      .replace(/\bflight level\b/g, ' flightlevel ')
+      .replace(/\s+/g, ' ').trim();
+
+    text = text.replace(/\b(nmn weather|weather info|weather report)\b/g, 'weather')
+               .replace(/\bradar contact established\b/g, 'radar contact')
+               .replace(/\bvector for par|vectors to par|vector to final\b/g, 'vector to par')
+               .replace(/\blost communication|no transmission received\b/g, 'lost comm')
+               .replace(/\bmissed approach procedure|climb out complete\b/g, 'missed approach')
+               .replace(/\bposition check\b/g, 'position')
+               .replace(/\blanding checklist\b/g, 'landing check');
+    return text;
   }
   function parseSpokenNumber(s){
     var x = String(s || '').toLowerCase().trim().replace(/\b(feet|foot|knots?|degrees?)\b/g,'').replace(/\s+/g,' ').trim();
@@ -1096,8 +1192,6 @@
     voiceFeedback.textContent = message;
     voiceFeedback.style.color = ok ? 'var(--ok)' : 'var(--warn)';
   }
-  // Accent-tolerant matching for checklist phrases. SpeechRecognition alternatives are
-  // preferred; fuzzy text matching is a fallback, not a general command auto-corrector.
   function editDistance(a,b){
     a=String(a||''); b=String(b||'');
     var dp=[],i,j;
@@ -1112,31 +1206,28 @@
     if(!t||!p)return 0;
     if(t.indexOf(p)>=0)return 1;
     var words=t.split(' '), wanted=p.split(' '), best=0;
-    // Compare short sliding word windows so one misheard word does not ruin a phrase.
     for(var n=Math.max(1,wanted.length-1);n<=Math.min(words.length,wanted.length+1);n++){
       for(var i=0;i+n<=words.length;i++){
         var chunk=words.slice(i,i+n).join(' '), d=editDistance(chunk,p), score=1-d/Math.max(chunk.length,p.length);
         if(score>best)best=score;
       }
     }
-    // Single keyword matches get a stricter threshold to avoid accidental checkoffs.
     return best;
   }
   function autoChecklistFromSpeech(raw, alternatives){
     if(!voiceMode || role !== 'ctl' || !running || !mine || !mine.ctl) return false;
     var candidates=(alternatives||[]).concat([String(raw||'')]).filter(Boolean);
     var items=[
-      {key:'W',label:'Weather (W)',phrases:['weather','whether']},
-      {key:'C',label:'Clearance (C)',phrases:['clearance','clearance delivery']},
-      {key:'R',label:'Radar Contact (R)',phrases:['radar contact','radar-contact']},
-      {key:'V',label:'Vector to PAR (V)',phrases:['vector to par','vector to p a r','vectors to par','vector for par']},
-      {key:'LC',label:'No transmission (LC)',phrases:['if no transmission','no transmission','lost communication','lost comm']},
-      {key:'MACO',label:'After completing / climb-out (MACO)',phrases:['after completing','climb out complete','climbout complete','after completion']},
-      {key:'MACO',label:'Missed approach (MACO)',phrases:['missed approach','miss approach','missed the approach']},
-      {key:'POS',label:'Millington position (POS)',phrases:['mile of millington airport','miles of millington airport','mile from millington','miles from millington','millington airport']},
-      {key:'L',label:'Landing Check (L)',phrases:['landing check','landing checklist']}
+      {key:'W',label:'WEATHER (W)',phrases:['weather','whether']},
+      {key:'C',label:'CLEARANCE (C)',phrases:['clearance','clearance delivery']},
+      {key:'R',label:'RADAR CONTACT (R)',phrases:['radar contact','radar-contact']},
+      {key:'V',label:'VECTOR (V)',phrases:['vector','vector to par','vectors','vector to final']},
+      {key:'LC',label:'LOST COMM (LC)',phrases:['lost comm','lost communication','no transmission']},
+      {key:'MACO',label:'MISSED APCH / CLIMBOUT (MACO)',phrases:['missed approach','climb out','miss approach','climbout']},
+      {key:'POS',label:'POSITION (POS)',phrases:['position','millington airport','miles of millington']},
+      {key:'L',label:'LANDING CHK (L)',phrases:['landing check','landing checklist']}
     ];
-    if(mine.kind==='ifr')items.push({key:'D',label:'Descend and Maintain (D)',phrases:['descend and maintain','descend maintain']});
+    if(mine.kind==='ifr')items.push({key:'D',label:'DESCEND (D)',phrases:['descend and maintain','descend maintain']});
     var matched=[];
     items.forEach(function(item){
       if(!listFor(mine).some(function(c){return c.k===item.key;}))return;
@@ -1147,20 +1238,19 @@
       if(best>=threshold){tick(mine,item.key);matched.push(item.label);}
     });
     if(matched.length){
-      if(matched.some(function(x){return x.indexOf('Weather (W)')===0;})) pilotWeatherReport(mine);
-      var msg='Auto-checked (accent-tolerant match): '+matched.filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ')+'.';
-      voiceResult(true,msg); log('sys',mine.cs+' solo voice checklist: '+msg); renderChk(); return true;
+      if(matched.some(function(x){return x.indexOf('WEATHER (W)')===0;})) pilotWeatherReport(mine);
+      var msg='Auto-checked: '+matched.filter(function(x,i,a){return a.indexOf(x)===i;}).join(', ')+'.';
+      voiceResult(true,msg); log('sys',mine.cs+' voice checklist: '+msg); renderChk(); return true;
     }
     return false;
   }
 
   function runVoiceCommand(raw, source){
     var original = String(raw || '').trim();
-    if(!original){ voiceResult(false,'No command received. Nothing changed.'); return false; }
-    log('sys',(source === 'mic' ? 'MIC HEARD: ' : 'COMMAND INPUT: ') + '"' + original + '"');
+    if(!original){ voiceResult(false,'No command received.'); return false; }
+    log('sys',(source === 'mic' ? 'MIC HEARD: ' : 'CMD: ') + '"' + original + '"');
     var s = normalizeVoiceText(original);
     var m, n;
-    // If a callsign starts the utterance, select that aircraft before parsing the instruction.
     var prefixedAircraft = null;
     AC.filter(function(a){return a.ctl;}).forEach(function(a){
       var csNorm=normalizeVoiceText(a.cs).replace(/\s+/g,' ');
@@ -1169,66 +1259,63 @@
     if(prefixedAircraft){
       mine=prefixedAircraft.aircraft; s=prefixedAircraft.rest;
       renderMine();renderTargets();renderChk();
-      log('sys','Callsign recognized: '+mine.cs+'.');
     }
     if(/\b(start|begin|new) (the )?(simulator|scenario)\b/.test(s)){
-      if(!running){ startBtn.click(); voiceResult(true,'Accepted: started a new scenario.'); }
-      else { voiceResult(false,'Simulator is already running. Say “new scenario” only if you want to reset it.'); }
+      if(!running){ startBtn.click(); voiceResult(true,'Started new scenario.'); }
+      else { voiceResult(false,'Already running.'); }
       return true;
     }
     if(/\b(pause|resume|continue) (the )?(simulator|simulation)?\b/.test(s) || /^(pause|resume|continue)$/.test(s)){
       if(!running && !AC.length){ voiceResult(false,'Start a scenario first.'); return false; }
-      if((/\bpause\b/.test(s) && running) || ((/\bresume\b|\bcontinue\b/.test(s)) && !running)){ pauseBtn.click(); voiceResult(true,'Accepted: ' + pauseBtn.textContent.toLowerCase() + '.'); }
-      else { voiceResult(true,'No change: simulator is already ' + (running?'running':'paused') + '.'); }
+      if((/\bpause\b/.test(s) && running) || ((/\bresume\b|\bcontinue\b/.test(s)) && !running)){ pauseBtn.click(); voiceResult(true,'Accepted.'); }
       return true;
     }
     if((m=s.match(/^select (?:aircraft )?(.+)$/))){
       var wanted=m[1].replace(/\b(aircraft|callsign|call sign)\b/g,'').trim().toUpperCase();
       var found=AC.filter(function(a){return a.ctl && a.cs.toUpperCase()===wanted;})[0]
         || AC.filter(function(a){return a.ctl && a.cs.toUpperCase().replace(/\s+/g,'')===wanted.replace(/\s+/g,'');})[0];
-      if(!found){ voiceResult(false,'Aircraft not found. Use the exact callsign shown in My aircraft.'); return false; }
-      mine=found; renderMine(); renderTargets(); renderChk(); voiceResult(true,'Selected ' + found.cs + '.'); log('sys','Selected aircraft ' + found.cs + '.'); return true;
+      if(!found){ voiceResult(false,'Aircraft not found.'); return false; }
+      mine=found; renderMine(); renderTargets(); renderChk(); voiceResult(true,'Selected ' + found.cs + '.'); return true;
     }
     if(/\b(say|report|request) (all|position|heading|altitude|intentions)\b/.test(s)){
       var req=s.match(/\b(all|position|heading|altitude|intentions)\b/)[1];
       var k={position:'pos',heading:'hdgq',altitude:'altq',intentions:'int',all:'all'}[req];
-      cmd(k); voiceResult(true,'Accepted: ' + req + ' request sent.'); return true;
+      cmd(k); voiceResult(true,'Accepted: ' + req); return true;
     }
     if(/^(position|heading|altitude|intentions|all)$/.test(s)){
       var k2={position:'pos',heading:'hdgq',altitude:'altq',intentions:'int',all:'all'}[s];
-      cmd(k2); voiceResult(true,'Accepted: ' + s + ' request sent.'); return true;
+      cmd(k2); voiceResult(true,'Accepted: ' + s); return true;
     }
     if(/\bidentify\b/.test(s)){
-      if(!running || !mine || !sel){ voiceResult(false,'Select a radar target and an aircraft before identifying.'); return false; }
-      identBtn.click(); voiceResult(true,'Identify request processed. Check the log for the result.'); return true;
+      if(!running || !mine || !sel){ voiceResult(false,'Select a target first.'); return false; }
+      identBtn.click(); voiceResult(true,'Identify processed.'); return true;
     }
-    if(!running || !mine){ voiceResult(false,'Start the simulator and select an aircraft first. No aircraft state changed.'); return false; }
+    if(!running || !mine){ voiceResult(false,'Start simulator first.'); return false; }
     if((m=s.match(/^(?:turn )?(left|right)(?: turn)? heading (.+)$/))){
-      n=parseSpokenNumber(m[2]); if(!(n>=1 && n<=360)){voiceResult(false,'Heading must be 001–360. Nothing changed.');return false;}
-      hdgIn.value=n; cmd(m[1]==='left'?'left':'right'); voiceResult(true,'Accepted: turn '+m[1]+' heading '+hdg3(n)+'.'); return true;
+      n=parseSpokenNumber(m[2]); if(!(n>=1 && n<=360)){voiceResult(false,'Heading 001–360.');return false;}
+      hdgIn.value=n; cmd(m[1]==='left'?'left':'right'); voiceResult(true,'Turn '+m[1]+' '+hdg3(n)+'.'); return true;
     }
     if((m=s.match(/^(?:climb and maintain|climb to|climb maintain) (.+)$/))){
-      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
-      altIn.value=n; cmd('climb'); voiceResult(true,'Accepted: climb and maintain '+spokenAlt(n)+'.'); return true;
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Alt 500–12,000.');return false;}
+      altIn.value=n; cmd('climb'); voiceResult(true,'Climb '+spokenAlt(n)+'.'); return true;
     }
     if((m=s.match(/^(?:descend and maintain|descend to|descend maintain) (.+)$/))){
-      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
-      altIn.value=n; cmd('descend'); voiceResult(true,'Accepted: descend and maintain '+spokenAlt(n)+'.'); return true;
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Alt 500–12,000.');return false;}
+      altIn.value=n; cmd('descend'); voiceResult(true,'Descend '+spokenAlt(n)+'.'); return true;
     }
     if((m=s.match(/^maintain (.+)$/))){
-      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
-      altIn.value=n; cmd('maintain'); voiceResult(true,'Accepted: maintain '+spokenAlt(n)+'.'); return true;
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Alt 500–12,000.');return false;}
+      altIn.value=n; cmd('maintain'); voiceResult(true,'Maintain '+spokenAlt(n)+'.'); return true;
     }
     if((m=s.match(/^(?:reduce speed to|speed) (.+)$/))){
-      n=parseSpokenNumber(m[1]); if(!(n>=60&&n<=350)){voiceResult(false,'Speed must be 60–350 knots. Nothing changed.');return false;}
-      spdIn.value=n; cmd('speed'); voiceResult(true,'Accepted: reduce speed to '+n+' knots.'); return true;
+      n=parseSpokenNumber(m[1]); if(!(n>=60&&n<=350)){voiceResult(false,'Spd 60–350 kt.');return false;}
+      spdIn.value=n; cmd('speed'); voiceResult(true,'Speed '+n+' kt.'); return true;
     }
     if((m=s.match(/^squawk (.+)$/))){
-      var code=String(m[1]).replace(/\s/g,''); if(!/^[0-7]{4}$/.test(code)){voiceResult(false,'Squawk must be four digits, 0–7. Nothing changed.');return false;}
-      sqIn.value=code; cmd('squawk'); voiceResult(true,'Squawk command processed. Check the log.'); return true;
+      var code=String(m[1]).replace(/\s/g,''); if(!/^[0-7]{4}$/.test(code)){voiceResult(false,'Squawk 4 digits.');return false;}
+      sqIn.value=code; cmd('squawk'); voiceResult(true,'Squawk '+code+'.'); return true;
     }
-    voiceResult(false,'Not recognized. No aircraft state changed. Try “turn right heading 270”, “climb and maintain 3000”, or “reduce speed to 140”.');
-    log('sys','COMMAND REJECTED: no matching command template; aircraft state unchanged.');
+    voiceResult(false,'Command not recognized.');
     return false;
   }
   document.getElementById('runVoiceCommand').addEventListener('click',function(){
@@ -1243,22 +1330,19 @@
     if(micPermissionStream){try{micPermissionStream.getTracks().forEach(function(t){t.stop();});}catch(e){} micPermissionStream=null;}
     micToggle.textContent='🎙 Hold to Talk';
     micToggle.setAttribute('aria-pressed','false');
-    micStatus.textContent='Microphone idle. Press and hold to speak; release to stop listening.';
   }
   function startMic(){
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){voiceResult(false,'This browser does not support built-in speech recognition. Try current Edge or Chrome.');return;}
+    if(!SR){voiceResult(false,'Speech recognition unsupported in this browser.');return;}
     if(!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      voiceResult(false,'Microphone permission requires a secure HTTPS GitHub Pages address or localhost. Open the deployed Pages URL directly, not a GitHub file preview.');return;
+      voiceResult(false,'Requires HTTPS or localhost.');return;
     }
     if(micListening)return;
     micHeld=true;
-    micToggle.textContent='🎙 Listening… release to stop';
+    micToggle.textContent='🎙 Listening…';
     micToggle.setAttribute('aria-pressed','true');
-    micStatus.textContent='Requesting microphone access… keep holding the button.';
     navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){
       micPermissionStream=stream;
-      // SpeechRecognition opens its own audio capture; this stream is used to obtain an explicit permission prompt.
       try{stream.getTracks().forEach(function(t){t.stop();});}catch(e){}
       micPermissionStream=null;
       if(!micHeld)return;
@@ -1274,30 +1358,27 @@
             }
             var interim='';
             for(var k=ev.resultIndex;k<ev.results.length;k++)if(!ev.results[k].isFinal && ev.results[k][0])interim+=ev.results[k][0].transcript+' ';
-            if(interim.trim()){voiceCommandIn.value=interim.trim();micStatus.textContent='Hearing: '+interim.trim();}
+            if(interim.trim()){voiceCommandIn.value=interim.trim();}
             if(bestFinal){voiceCommandIn.value=bestFinal; if(!autoChecklistFromSpeech(bestFinal,alternatives))runVoiceCommand(bestFinal,'mic');}
           };
-          recognition.onerror=function(ev){voiceResult(false,'Microphone error: '+ev.error+'. Check browser site permissions and retry.');};
+          recognition.onerror=function(ev){voiceResult(false,'Mic error: '+ev.error);};
           recognition.onend=function(){
             micListening=false;
             if(micHeld){
-              // Keep push-to-talk semantics: do not restart if the user has released the button.
               try{if(micHeld && recognition)recognition.start();micListening=true;}catch(e){micListening=false;}
             }else{
               micToggle.textContent='🎙 Hold to Talk'; micToggle.setAttribute('aria-pressed','false');
-              micStatus.textContent='Microphone idle. Press and hold to speak; release to stop listening.';
             }
           };
         }
         if(!micHeld)return;
         recognition.start(); micListening=true;
-        micStatus.textContent='Listening while held. Release the button to stop. English ATC phrase matching tolerates small recognition errors.';
-        voiceResult(true,'Push-to-talk active. Speak now; release the button when finished.');
-      }catch(e){micListening=false;voiceResult(false,'Could not start speech recognition. Release and hold the button again.');}
+        voiceResult(true,'Listening… speak now.');
+      }catch(e){micListening=false;voiceResult(false,'Could not start mic.');}
     }).catch(function(err){
       micHeld=false;micListening=false;micToggle.textContent='🎙 Hold to Talk';micToggle.setAttribute('aria-pressed','false');
-      var detail=err&&err.name==='NotAllowedError'?'Permission denied or blocked. Allow microphone access for your GitHub Pages site in browser settings.':(err&&err.name==='NotFoundError'?'No microphone was found. Connect or select a microphone.':'Could not access microphone: '+(err&&err.name||'unknown error')+'.');
-      micStatus.textContent=detail;voiceResult(false,detail);
+      var detail=err&&err.name==='NotAllowedError'?'Mic permission blocked in browser settings.':'Could not access mic.';
+      voiceResult(false,detail);
     });
   }
   function beginHold(e){
@@ -1315,7 +1396,6 @@
   micToggle.addEventListener('pointercancel',endHold);
   micToggle.addEventListener('lostpointercapture',endHold);
   micToggle.addEventListener('contextmenu',function(e){e.preventDefault();});
-  // Keyboard users can hold Space or Enter to talk as well.
   micToggle.addEventListener('keydown',function(e){if((e.code==='Space'||e.code==='Enter')&&!e.repeat){e.preventDefault();beginHold(e);}});
   micToggle.addEventListener('keyup',function(e){if(e.code==='Space'||e.code==='Enter'){e.preventDefault();endHold(e);}});
   window.addEventListener('pointerup',function(e){if(micHeld && e.pointerId!==undefined)endHold(e);});
@@ -1331,18 +1411,17 @@
 
   identBtn.addEventListener('click', function(){
     if(!running || !mine || !sel){ log('sys','Select a target first.'); return; }
-    if(mine.ident){ log('sys', mine.cs + ' is already identified.'); return; }
+    if(mine.ident){ log('sys', mine.cs + ' already identified.'); return; }
     tries++;
     if(sel === mine){
       mine.ident = true; tick(mine,'R');
       log('me','"' + mine.cs + ', RADAR CONTACT, ' + Math.round(rangeOf(mine)) + ' MILES ' +
           compass8(bearingOf(mine)).toUpperCase() + ' OF MILLINGTON' +
           (mine.mode === 'secondary' ? ', SQUAWK ' + mine.squawk : '') + '."');
-      log('sys','Identified in ' + tries + (tries === 1 ? ' attempt' : ' attempts') + '.');
-      statusEl.textContent = mine.cs + ' identified — vector it to the final approach course.';
+      statusEl.textContent = mine.cs + ' identified — vector to final.';
       identBtn.disabled = true;
     } else {
-      log('sys','That target does not match ' + mine.cs + '. Ask again, or assign a turn and see which one moves.');
+      log('sys','Target does not match ' + mine.cs + '.');
     }
     renderTargets(); renderMine(); renderChk(); draw();
   });
@@ -1370,7 +1449,6 @@
     document.getElementById('gate').hidden = false;
   });
 
-  // range / bearing measuring line (click-drag on the scope)
   var mStart = null, mNow = null, moved = false;
   function canvasPt(ev){
     var r = cv.getBoundingClientRect();
@@ -1388,7 +1466,7 @@
       var dx = (mNow.px - mStart.px)/ppn, dy = -(mNow.py - mStart.py)/ppn;
       var brg = norm(Math.atan2(dx,dy)*180/Math.PI), dist = Math.sqrt(dx*dx + dy*dy);
       measEl.hidden = false;
-      measEl.textContent = 'heading ' + hdg3(brg) + ' · ' + dist.toFixed(1) + ' NM';
+      measEl.textContent = 'hdg ' + hdg3(brg) + ' · ' + dist.toFixed(1) + ' NM';
       measEl.style.left = (mNow.px + 14) + 'px';
       measEl.style.top = (mNow.py - 10) + 'px';
     }
@@ -1407,20 +1485,16 @@
   startBtn.addEventListener('click', function(){
     simSec = 0; logEl.innerHTML = ''; spawn(); running = true;
     pauseBtn.disabled = false; pauseBtn.textContent = 'Pause'; identBtn.disabled = true;
-    startBtn.textContent = 'New scenario';
-    statusEl.textContent = 'Three targets, one of them is ' + mine.cs + '. Find it, then identify it.';
-    log('sys','Three targets. Blocks show squawk, altitude (hundreds) and speed (tens of kt) only.');
-    log('sys','Your aircraft is VFR — run W C R V, then the rest of the card.');
+    startBtn.textContent = 'Restart';
+    statusEl.textContent = 'Find ' + mine.cs + ' and identify it.';
     log('pilot','"NMN Arrival, ' + mine.cs + ', with you, requesting ' + mine.intent + ' at Millington."');
-    log('sys','Ask for position, heading or altitude — or give a turn — until you know which blip it is.');
     renderTargets(); renderMine();
   });
   pauseBtn.addEventListener('click', function(){
     running = !running; pauseBtn.textContent = running ? 'Pause' : 'Resume';
-    log('sys', running ? 'Simulation resumed.' : 'Simulation paused.');
+    log('sys', running ? 'Resumed.' : 'Paused.');
   });
 
-  // ---------- PeerJS room sync ----------
   function snapshot(){
     return {
       clock: clock(),
@@ -1448,7 +1522,7 @@
 
   function connect(){
     if(typeof Peer === 'undefined'){
-      if(role === 'ctl') log('alert', 'PeerJS failed to load. Check internet connection.');
+      if(role === 'ctl') log('alert', 'PeerJS failed to load.');
       return;
     }
     if(room && room.leave){ try { room.leave(); } catch(e){} }
@@ -1458,12 +1532,12 @@
       peerConns = [];
       peer = new Peer(targetId);
       peer.on('open', function(){
-        log('sys', 'Room "' + roomName + '" is live. Waiting for player to join…');
+        log('sys', 'Room "' + roomName + '" live.');
       });
       peer.on('connection', function(conn){
         peerConns.push(conn);
         conn.on('open', function(){
-          log('sys', 'Player connected to room "' + roomName + '".');
+          log('sys', 'Player connected.');
           try { conn.send({event: 'state', data: snapshot()}); } catch(e){}
         });
         conn.on('close', function(){
@@ -1476,9 +1550,7 @@
       });
       peer.on('error', function(err){
         if(err.type === 'unavailable-id'){
-          log('alert', 'Room "' + roomName + '" already has an active Controller. Change room name or close the other tab.');
-        } else {
-          log('sys', 'Network status: ' + err.type);
+          log('alert', 'Room "' + roomName + '" already has an active Controller.');
         }
       });
       room = {
@@ -1532,7 +1604,6 @@
     }
   }
 
-  // ---------- loop ----------
   function frame(ts){
     if(!role){ t0 = 0; requestAnimationFrame(frame); return; }
     if(!t0) t0 = ts;
@@ -1550,7 +1621,6 @@
     requestAnimationFrame(frame);
   }
 
-  // ---------- role gate ----------
   function enter(r){
     voiceMode = (r === 'voice');
     role = (r === 'voice') ? 'ctl' : r;
@@ -1561,20 +1631,24 @@
     voiceCard.hidden = !voiceMode;
     if(role === 'ply'){
       document.getElementById('side').hidden = true;
+      logWrap.hidden = true;
+      chkWrap.hidden = true;
       app.classList.add('solo');
       scopetag.textContent = 'NMN ARRIVAL · 30 NM · player view · room "' + roomName + '"';
       waitEl.hidden = false;
     } else {
       document.getElementById('side').hidden = false;
+      logWrap.hidden = false;
+      chkWrap.hidden = false;
       app.classList.remove('solo');
       waitEl.hidden = true;
-      scopetag.textContent = 'NMN ARRIVAL · 30 NM · controller · room "' + roomName + '" · MVA 2500 inside 5 NM / 3400 northwest beyond 20 NM / 1500 elsewhere';
+      scopetag.textContent = 'NMN ARRIVAL · 30 NM · controller · room "' + roomName + '"';
       renderChk(); renderTargets(); renderMine();
     }
     if(voiceMode){
-      scopetag.textContent = 'NMN ARRIVAL · PERSONAL VOICE MODE · single-player · microphone/text commands';
+      scopetag.textContent = 'NMN ARRIVAL · PERSONAL VOICE MODE · single-player';
       waitEl.hidden = true;
-      log('sys','Personal Voice Mode ready. Start the simulator, then issue one supported command at a time.');
+      log('sys','Voice Mode ready. Start simulator.');
     } else connect();
     resize();
     if(!looping){ looping = true; requestAnimationFrame(frame); }
