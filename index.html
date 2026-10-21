@@ -165,7 +165,7 @@
         <button id="pause" disabled>Pause</button>
       </div>
       <label class="f" for="rate" style="margin-top:10px">Sim speed <span id="rateV" style="color:var(--ink)">1.0×</span></label>
-      <input type="range" id="rate" min="0.2" max="2" step="0.1" value="1">
+      <input type="range" id="rate" min="0.2" max="3" step="0.1" value="1">
       <div class="hint" id="status">Three targets. One of them is yours — find it by asking for position, heading and altitude.</div>
     </div>
 
@@ -262,6 +262,13 @@
     {t:'P-8', spd:250},  {t:'C-17', spd:260}, {t:'C-130', spd:210}, {t:'E-2', spd:200},
     {t:'C-12', spd:180}, {t:'T-6', spd:160},  {t:'H-60', spd:120},  {t:'V-22', spd:150}
   ];
+  function appSpdFor(type, initSpd){
+    if(type === 'H-60') return 75;
+    if(type === 'V-22') return 95;
+    if(type === 'T-6' || type === 'C-12') return 115;
+    if(type === 'E-2' || type === 'C-130') return 125;
+    return Math.min(initSpd, 140);
+  }
   var BASES = ['PL','UGLY','CROSSBOW','HAWK','BS','PARTY','NICKEL','JV','MARS'];
   function makeCs(used){
     for(var i=0;i<200;i++){
@@ -369,6 +376,12 @@
           if(c.k === 'W' && a.chk[c.k] && running){
             log('pilot','"' + a.cs + ' has the weather, ' + a.type + ', requesting ' + a.intent + ' at Millington."');
           }
+          if(c.k === 'L'){
+            a.tSpd = a.chk[c.k] ? a.appSpd : a.initSpd;
+            if(a.chk[c.k] && running){
+              log('pilot','"' + a.cs + ', three down and locked, slowing to ' + a.appSpd + ' knots."');
+            }
+          }
           renderChk();
         });
         row.appendChild(b);
@@ -400,7 +413,7 @@
       var secondary = Math.random() < 0.62;
       AC.push({
         id: 'a' + i, cs: cs,
-        type: ty.t, spd: spd,
+        type: ty.t, spd: spd, initSpd: spd, tSpd: spd, appSpd: appSpdFor(ty.t, spd),
         x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
         hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
         mode: secondary ? 'secondary' : 'primary',
@@ -427,7 +440,7 @@
     var a = {
       id: 'a' + (Date.now() % 100000) + Math.floor(Math.random()*90),
       cs: makeCs(used),
-      type: ty.t, spd: spd,
+      type: ty.t, spd: spd, initSpd: spd, tSpd: spd, appSpd: appSpdFor(ty.t, spd),
       x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
       hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
       mode: secondary ? 'secondary' : 'primary',
@@ -496,6 +509,12 @@
       if(a.alt !== a.tAlt){
         var vs = 25*dt*(a.tAlt > a.alt ? 1 : -1);
         if(Math.abs(a.tAlt - a.alt) <= Math.abs(vs)) a.alt = a.tAlt; else a.alt += vs;
+      }
+
+      if(a.tSpd != null && a.spd !== a.tSpd){
+        var ds = 2.5*dt*(a.tSpd > a.spd ? 1 : -1);
+        if(Math.abs(a.tSpd - a.spd) <= Math.abs(ds)) a.spd = a.tSpd; else a.spd += ds;
+        if(simSec % 1 < dt*rate) renderTargets();
       }
 
       var d = a.spd/3600*dt;
@@ -992,7 +1011,7 @@
       clock: clock(),
       ac: AC.map(function(a){
         return {id:a.id, x:+a.x.toFixed(3), y:+a.y.toFixed(3), hdg:+a.hdg.toFixed(1),
-                alt:Math.round(a.alt), spd:a.spd, mode:a.mode, squawk:a.squawk,
+                alt:Math.round(a.alt), spd:Math.round(a.spd), mode:a.mode, squawk:a.squawk,
                 reported:a.reported, trail:a.trail.slice(0,4), violated:!!a.violated,
                 tag:(a.ctl && a.ident) ? a.cs : null};
       }),
