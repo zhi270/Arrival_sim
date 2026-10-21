@@ -350,7 +350,13 @@
         var b = document.createElement('button');
         b.setAttribute('aria-pressed', a.chk[c.k] ? 'true' : 'false');
         b.innerHTML = '<span class="k">' + c.k + '</span><span class="n">' + c.n + '</span>';
-        b.addEventListener('click', function(){ a.chk[c.k] = !a.chk[c.k]; renderChk(); });
+        b.addEventListener('click', function(){
+          a.chk[c.k] = !a.chk[c.k];
+          if(c.k === 'W' && a.chk[c.k] && running){
+            log('pilot','"' + a.cs + ' has the weather, ' + a.type + ', requesting ' + a.intent + ' at Millington."');
+          }
+          renderChk();
+        });
         row.appendChild(b);
       });
       box.appendChild(row);
