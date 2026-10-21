@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arrival Simulator · NMN</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1118; --panel:#101922; --panel-2:#16212c; --edge:#27364a;
+    --ink:#dce6f0; --dim:#7489a0; --live:#f2a33c; --key:#5fb7c4;
+    --sec:#5fb7c4; --pri:#e0b35a; --sel:#f2a33c; --warn:#e8705f; --ok:#4fae77;
+    --mva-in:rgba(56,130,178,.16); --mva-s:rgba(34,150,94,.14);
+    --mva-nw:rgba(190,140,40,.14); --mva-ne:rgba(120,140,165,.10);
+    --ring:#2b3b4e; --rwy:#c9d6e2;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  :root:not([data-theme="dark"]){
+    --bg:#e9e7e1; --panel:#f6f5f1; --panel-2:#ffffff; --edge:#d5d0c5;
+    --ink:#1d2730; --dim:#6c7783; --live:#b4651a; --key:#1f6d79;
+    --sec:#1f6d79; --pri:#8a6512; --sel:#b4651a; --warn:#b4382a; --ok:#2e7d52;
+    --mva-in:rgba(56,130,178,.13); --mva-s:rgba(34,150,94,.12);
+    --mva-nw:rgba(190,140,40,.16); --mva-ne:rgba(120,140,165,.10);
+    --ring:#c3cbd4; --rwy:#1d2730;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b1118; --panel:#101922; --panel-2:#16212c; --edge:#27364a;
+      --ink:#dce6f0; --dim:#7489a0; --live:#f2a33c; --key:#5fb7c4;
+      --sec:#5fb7c4; --pri:#e0b35a; --sel:#f2a33c; --warn:#e8705f; --ok:#4fae77;
+      --ring:#2b3b4e; --rwy:#c9d6e2;
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-size:14px; line-height:1.45}
+
+  .app{display:grid; grid-template-columns:1fr 348px; gap:12px; padding:12px; height:100%}
+  .app.solo{grid-template-columns:1fr}
+  @media (max-width:880px){ .app{grid-template-columns:1fr; height:auto} }
+  .app.solo{height:100%}
+  .app.solo .scopewrap{min-height:min(88vh, 100%)}
+
+  .scopewrap{background:var(--panel); border:1px solid var(--edge); border-radius:10px; position:relative; min-height:420px}
+  canvas{display:block; width:100%; height:100%; border-radius:10px; touch-action:manipulation}
+  .scopetag{position:absolute; top:8px; left:12px; font-size:11.5px; color:var(--dim); pointer-events:none; max-width:70%}
+  .clock{position:absolute; top:8px; right:12px; font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; pointer-events:none}
+  .backbtn{position:absolute; left:10px; bottom:10px; font-size:12px; padding:5px 9px; opacity:.85}
+  .audiobtn{position:absolute; right:10px; bottom:10px; font-size:12px; padding:5px 9px; opacity:.9}
+  .audiobtn[aria-pressed="true"]{border-color:var(--ok); color:var(--ok)}
+  .measure{position:absolute; font-size:12px; font-weight:600; color:var(--sel); pointer-events:none;
+    background:var(--panel); border:1px solid var(--edge); border-radius:6px; padding:2px 7px; white-space:nowrap}
+  .waiting{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--dim); font-size:14px; text-align:center; padding:20px; pointer-events:none}
+
+  .side{display:flex; flex-direction:column; gap:10px; min-height:0; overflow-y:auto; padding-right:2px}
+  .card{background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:10px}
+  h2{margin:0 0 8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim)}
+
+  button{font:inherit; cursor:pointer; border-radius:7px; border:1px solid var(--edge);
+    background:var(--panel-2); color:var(--ink); padding:7px 10px}
+  button:disabled{opacity:.42; cursor:default}
+  button.primary{background:var(--live); border-color:var(--live); color:var(--bg); font-weight:600}
+  button.wide{width:100%}
+  .row{display:flex; gap:6px; flex-wrap:wrap}
+  .row > *{flex:1 1 auto}
+
+  .targets{display:flex; flex-direction:column; gap:5px; max-height:140px; overflow:auto}
+  .tgt{display:flex; align-items:center; gap:8px; padding:5px 8px; border:1px solid var(--edge);
+    border-radius:7px; background:var(--panel-2); cursor:pointer; text-align:left}
+  .tgt.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
+  .tgt .cs,.tgt .sq{font-weight:600; letter-spacing:.03em; font-variant-numeric:tabular-nums}
+  .tgt .meta{color:var(--dim); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums}
+  .badge{font-size:10px; padding:1px 5px; border-radius:4px; border:1px solid currentColor}
+  .b-sec{color:var(--sec)} .b-pri{color:var(--pri)}
+
+  label.f{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); margin-bottom:6px}
+  input[type=number]{font:inherit; width:86px; background:var(--panel-2); color:var(--ink);
+    border:1px solid var(--edge); border-radius:6px; padding:5px 7px; text-align:right}
+  input[type=text]{font:inherit; background:var(--panel-2); color:var(--ink);
+    border:1px solid var(--edge); border-radius:6px; padding:6px 8px; width:100%}
+  input[type=range]{width:100%; accent-color:var(--key)}
+  input:focus-visible,button:focus-visible{outline:2px solid var(--key); outline-offset:1px}
+
+  .work{display:flex; flex-direction:column; gap:5px}
+  .work button{display:flex; align-items:center; gap:8px; text-align:left; padding:6px 9px}
+  .work button.on{border-color:var(--sel); box-shadow:inset 0 0 0 1px var(--sel)}
+  .work .cs{font-weight:600; letter-spacing:.03em}
+  .work .tag{margin-left:auto; font-size:11px}
+  .work .yes{color:var(--ok)} .work .nope{color:var(--live)}
+  .mine .cs{font-size:16px; font-weight:600; letter-spacing:.03em}
+  .mine .st{color:var(--dim); font-size:12px; margin-top:2px}
+  .mine .ok{color:var(--ok); font-weight:600}
+  .mine .no{color:var(--live); font-weight:600}
+
+  .chkblock{border:1px solid var(--edge); border-radius:8px; padding:7px 8px; margin-bottom:7px; background:var(--panel-2)}
+  .chkblock .hd{display:flex; align-items:center; gap:7px; margin-bottom:6px}
+  .chkblock .hd .cs{font-weight:600; letter-spacing:.03em}
+  .chkblock .hd .kind{font-size:10px; padding:1px 5px; border-radius:4px; border:1px solid currentColor; color:var(--dim)}
+  .chkblock .hd .kind.ifr{color:var(--key)} .chkblock .hd .kind.vfr{color:var(--pri)}
+  .chkblock .hd .cnt{margin-left:auto; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .chkblock.on{border-color:var(--sel)}
+  .chk{display:flex; flex-wrap:wrap; gap:5px}
+  .chk button{display:flex; align-items:center; gap:5px; padding:4px 8px; font-size:12px; flex:0 0 auto}
+  .chk button[aria-pressed="true"]{border-color:var(--ok); color:var(--ok)}
+  .chk .k{font-weight:700; letter-spacing:.04em}
+  .chk .n{color:var(--dim); font-size:11px}
+  .chk button[aria-pressed="true"] .n{color:var(--ok)}
+  .chkhint{color:var(--dim); font-size:11.5px; margin-top:6px; letter-spacing:.04em}
+
+  .log{flex:1 1 auto; min-height:180px; max-height:40vh; overflow:auto; display:flex; flex-direction:column; gap:3px; font-size:12.5px}
+  .log .e{display:flex; gap:7px}
+  .log .t{color:var(--dim); font-variant-numeric:tabular-nums; flex:none}
+  .log .me{color:var(--key)} .log .pilot{color:var(--ink)}
+  .log .sys{color:var(--dim); font-style:italic} .log .alert{color:var(--warn); font-weight:600}
+  .hint{color:var(--dim); font-size:12px; margin-top:6px}
+  .sel{font:inherit; width:100%; background:var(--panel-2); color:var(--ink);
+    border:1px solid var(--edge); border-radius:7px; padding:6px 8px}
+  .sw{display:flex; align-items:center; gap:8px; font-size:12.5px}
+  .sw input{accent-color:var(--live)}
+
+  .gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px; z-index:20}
+  .gate .box{background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:20px; max-width:430px; width:100%}
+  .gate h1{margin:0 0 4px; font-size:20px}
+  .gate p{margin:0 0 14px; color:var(--dim); font-size:13px}
+  .gate .role{display:grid; gap:8px; margin-bottom:12px}
+  .gate .role button{text-align:left; padding:11px 12px}
+  .gate .role b{display:block; font-size:14px}
+  .gate .role span{color:var(--dim); font-size:12px}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <div class="box">
+    <h1>NMN Arrival Simulator</h1>
+    <p>Two-player: the controller runs the simulator and talks; the player watches the scope only, can drag on it to measure a heading, and hears the pilot replies read out loud. Both sides join the same room name.</p>
+    <label class="f" for="room">Room name <input type="text" id="room" value="nmn" spellcheck="false" autocomplete="off"></label>
+    <div class="role">
+      <button id="asCtl"><b>Controller</b><span>Full panel — scenario, instructions, checklist, log</span></button>
+      <button id="asVoice"><b>Personal Voice Mode · 🎙</b><span>Single-player training — issue ATC instructions by microphone or text</span></button>
+      <button id="asPly"><b>Player</b><span>Radar picture only, live from the controller</span></button>
+    </div>
+    <div class="hint" id="gatehint">Pick a role to start. One device can also run both roles — the controller view already shows the scope.</div>
+  </div>
+</div>
+
+<div class="app" id="app" hidden>
+  <div class="scopewrap">
+    <canvas id="scope"></canvas>
+    <div class="scopetag" id="scopetag">NMN ARRIVAL · 30 NM · rings 5 NM · MVA 2500 inside 5 NM, 120/13, 220/25 · 2000 at 185/15 (3 NM) · 3400 northwest beyond 20 NM · 1500 elsewhere</div>
+    <div class="clock" id="clock">00:00</div>
+    <div class="waiting" id="waiting" hidden>Connecting to controller…</div>
+    <button class="backbtn" id="back">Change role</button>
+    <button class="audiobtn" id="audio" aria-pressed="false">🔇 Audio off</button>
+    <div class="measure" id="measure" hidden></div>
+  </div>
+
+  <div class="side" id="side">
+    <div class="card">
+      <div class="row">
+        <button class="primary" id="start">Start simulator</button>
+        <button id="pause" disabled>Pause</button>
+      </div>
+      <label class="f" for="rate" style="margin-top:10px">Sim speed <span id="rateV" style="color:var(--ink)">1.0×</span></label>
+      <input type="range" id="rate" min="0.2" max="3" step="0.1" value="1">
+      <div class="hint" id="status">Three targets. One of them is yours — find it by asking for position, heading and altitude.</div>
+    </div>
+
+    <div class="card" id="voiceCard" hidden>
+      <h2>Personal Voice Mode</h2>
+      <div class="row">
+        <button class="primary" id="micToggle">🎙 Start microphone</button>
+        <button id="voiceHelp">Phraseology / shortcuts</button>
+      </div>
+      <div class="hint" id="micStatus">Microphone is off. Browser speech recognition is optional; use the command box if mic access is unavailable.</div>
+      <label class="f" for="voiceCommand" style="margin-top:8px">Command / transcript</label>
+      <input type="text" id="voiceCommand" placeholder="e.g. turn right heading 270" autocomplete="off" spellcheck="false">
+      <div class="row" style="margin-top:6px">
+        <button class="wide" id="runVoiceCommand">Execute command</button>
+        <button id="clearVoiceCommand">Clear</button>
+      </div>
+      <div class="hint" id="voiceFeedback">Commands are logged before execution. Unrecognized or incomplete commands are rejected without changing the aircraft.</div>
+      <div id="phraseHelp" class="hint" hidden>
+        <b>Supported:</b> “climb and maintain 3000”, “descend and maintain 2000”, “maintain 3000”, “turn left/right heading 270”, “reduce speed to 140”, “say position/heading/altitude/intentions/all”, “select [callsign]”, “[callsign] turn right heading 270”, “start simulator”, “pause/resume”.<br>
+        <b>Shortcuts:</b> 1 climb · 2 descend · 3 maintain · 4 left · 5 right · 6 speed · P position · H heading · A altitude · I intentions · Space pause.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>My aircraft</h2>
+      <div class="work" id="worklist"></div>
+      <div class="hint" id="mine">Press start for a new scenario.</div>
+    </div>
+
+    <div class="card">
+      <h2>Targets on scope</h2>
+      <div class="targets" id="targets"></div>
+      <button class="wide" id="ident" style="margin-top:8px" disabled>Radar contact — identify selected</button>
+      <div class="row" style="margin-top:6px">
+        <button id="addAc">Add VFR</button>
+        <button id="addIfr">Add IFR</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Checklist</h2>
+      <div id="chk"></div>
+      <div class="chkhint">VFR: W C R V · LC · MACO · POS · L &nbsp;·&nbsp; IFR: D V · LC · MACO · POS · L · Climbout: V · MACO · POS · L</div>
+    </div>
+
+    <div class="card">
+      <h2>Control instructions</h2>
+      <label class="f" for="alt">Altitude <input type="number" id="alt" min="500" max="12000" step="100" value="3000"></label>
+      <div class="row" style="margin-bottom:8px">
+        <button data-cmd="climb">Climb and maintain</button>
+        <button data-cmd="descend">Descend and maintain</button>
+        <button data-cmd="maintain">Maintain</button>
+      </div>
+      <label class="f" for="hdg">Heading <input type="number" id="hdg" min="1" max="360" step="5" value="160"></label>
+      <div class="row" style="margin-bottom:8px">
+        <button data-cmd="left">Turn left heading</button>
+        <button data-cmd="right">Turn right heading</button>
+      </div>
+      <label class="f" for="spdIn">Reduce speed to <input type="number" id="spdIn" min="60" max="350" step="5" value="140"> kt</label>
+      <div class="row" style="margin-bottom:8px">
+        <button class="wide" data-cmd="speed">Reduce speed to selected value</button>
+      </div>
+      <label class="f" for="sqIn">Squawk <input type="text" id="sqIn" inputmode="numeric" maxlength="4" value="0461" spellcheck="false" style="width:72px; text-align:right"></label>
+      <div class="row" style="margin-bottom:8px">
+        <button class="wide" data-cmd="squawk">Squawk (beacon code)</button>
+      </div>
+      <h2 style="margin-top:4px">Requests</h2>
+      <div class="row">
+        <button data-cmd="pos">Say position</button>
+        <button data-cmd="hdgq">Say heading</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button data-cmd="altq">Say altitude</button>
+        <button data-cmd="int">Say intentions</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="wide" data-cmd="all">Say all (position, heading, altitude)</button>
+      </div>
+      <label class="f" for="boomMode" style="margin-top:10px">On violation (above 5,000 or below MVA)</label>
+      <select id="boomMode" class="sel">
+        <option value="continue" selected>Explosion and continue — aircraft turns red</option>
+        <option value="remove">Explosion and remove the aircraft</option>
+        <option value="off">No explosion, log the alert only</option>
+      </select>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column; min-height:0; flex:1 1 auto">
+      <h2>Log</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var RANGE = 30, CEIL = 5000;
+  var cv = document.getElementById('scope'), ctx = cv.getContext('2d');
+  var logEl = document.getElementById('log'), tgtEl = document.getElementById('targets');
+  var statusEl = document.getElementById('status'), clockEl = document.getElementById('clock');
+  var startBtn = document.getElementById('start'), pauseBtn = document.getElementById('pause');
+  var identBtn = document.getElementById('ident'), mineEl = document.getElementById('mine');
+  var altIn = document.getElementById('alt'), hdgIn = document.getElementById('hdg');
+  var sqIn = document.getElementById('sqIn');
+  var spdIn = document.getElementById('spdIn');
+  var rateIn = document.getElementById('rate'), rateV = document.getElementById('rateV');
+  var boomMode = document.getElementById('boomMode'), chkEl = document.getElementById('chk');
+  var waitEl = document.getElementById('waiting'), scopetag = document.getElementById('scopetag');
+  var backBtn = document.getElementById('back'), measEl = document.getElementById('measure');
+  var audioBtn = document.getElementById('audio');
+  var voiceCard = document.getElementById('voiceCard');
+  var micToggle = document.getElementById('micToggle');
+  var micStatus = document.getElementById('micStatus');
+  var voiceCommandIn = document.getElementById('voiceCommand');
+  var voiceFeedback = document.getElementById('voiceFeedback');
+  var phraseHelp = document.getElementById('phraseHelp');
+  var workEl = document.getElementById('worklist');
+  var addAcBtn = document.getElementById('addAc'), addIfrBtn = document.getElementById('addIfr');
+
+  var role = null, roomName = 'nmn', room = null, looping = false, voiceMode = false;
+  var recognition = null, micListening = false, lastVoiceCommand = '';
+  var AC = [], mine = null, sel = null, running = false, t0 = 0, simSec = 0, rate = 1;
+  var cx = 0, cy = 0, ppn = 1, tries = 0, booms = [], remote = null, lastRx = 0, trails = {};
+
+  var TYPES = [
+    {t:'F-18', spd:300}, {t:'T-45', spd:260}, {t:'EA-18', spd:300}, {t:'AV-8', spd:280},
+    {t:'P-8', spd:250},  {t:'C-17', spd:260}, {t:'C-130', spd:210}, {t:'E-2', spd:200},
+    {t:'C-12', spd:180}, {t:'T-6', spd:160},  {t:'H-60', spd:120},  {t:'V-22', spd:150}
+  ];
+  function appSpdFor(type, initSpd){
+    if(type === 'H-60') return 75;
+    if(type === 'V-22') return 95;
+    if(type === 'T-6' || type === 'C-12') return 115;
+    if(type === 'E-2' || type === 'C-130') return 125;
+    return Math.min(initSpd, 140);
+  }
+  var BASES = ['PL','UGLY','CROSSBOW','HAWK','BS','PARTY','NICKEL','JV','MARS'];
+  function makeCs(used){
+    for(var i=0;i<200;i++){
+      var c = pick(BASES) + ' ' + String(Math.floor(rnd(1,100))).padStart(2,'0');
+      if(!used[c]) return c;
+    }
+    return 'PL ' + String(Math.floor(rnd(1,100))).padStart(2,'0');
+  }
+  var INT = ['a PAR to a full stop','an ASR to a low approach','a PAR for touch and go','a full stop, straight in'];
+  var SQ = ['0461','0462','0463','0464','0465','0466','0467'];
+
+  var CHK_VFR = [
+    {k:'W',n:'weather'}, {k:'C',n:'clearance'}, {k:'R',n:'radar contact'}, {k:'V',n:'vector'},
+    {k:'LC',n:'lost comm'}, {k:'MACO',n:'missed approach / climb out'},
+    {k:'POS',n:'position'}, {k:'L',n:'landing check'}
+  ];
+  var CHK_IFR = [
+    {k:'D',n:'descend'}, {k:'V',n:'vector'},
+    {k:'LC',n:'lost comm'}, {k:'MACO',n:'missed approach / climb out'},
+    {k:'POS',n:'position'}, {k:'L',n:'landing check'}
+  ];
+  function listFor(a){
+    if(a && (a.phase === 'climbout' || a.phase === 'ready')) return [
+      {k:'R',n:'radar contact'},
+      {k:'MACO',n:'missed approach / climb out'},
+      {k:'V',n:'vector'},
+      {k:'POS',n:'position'},
+      {k:'L',n:'landing check'}
+    ];
+    return a.kind === 'ifr' ? CHK_IFR : CHK_VFR;
+  }
+
+  function rnd(a,b){ return a + Math.random()*(b-a); }
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function norm(d){ d = d % 360; return d <= 0 ? d + 360 : d; }
+  function fmtAlt(a){ return Math.round(a).toLocaleString('en-US'); }
+  function hdg3(h){ return String(Math.round(norm(h))).padStart(3,'0'); }
+  function spokenAlt(a){
+    var th = Math.floor(a/1000), hu = Math.round((a%1000)/100), w = '';
+    if(th) w += th + ' thousand';
+    if(hu) w += (th ? ' ' : '') + hu + ' hundred';
+    return w || String(a);
+  }
+  function compass8(b){
+    var n = ['north','northeast','east','southeast','south','southwest','west','northwest'];
+    return n[Math.round(norm(b)/45) % 8];
+  }
+  function rangeOf(a){ return Math.sqrt(a.x*a.x + a.y*a.y); }
+  function bearingOf(a){ return norm(Math.atan2(a.x, a.y)*180/Math.PI); }
+
+  // Dogleg/final corridor: 8 NM gate on bearing 340, doglegs 320/360, 2.2 NM corridor.
+  var GATE8 = {x:8*Math.sin(340*Math.PI/180), y:8*Math.cos(340*Math.PI/180)};
+  var RWY2 = {x:2*Math.sin(340*Math.PI/180), y:2*Math.cos(340*Math.PI/180)};
+  function doglegEndPt(hdg,maxR){
+    var rad=hdg*Math.PI/180, vx=Math.sin(rad), vy=Math.cos(rad);
+    var b=2*(GATE8.x*vx+GATE8.y*vy), c=GATE8.x*GATE8.x+GATE8.y*GATE8.y-maxR*maxR;
+    var d=(-b+Math.sqrt(Math.max(0,b*b-4*c)))/2;
+    return {x:GATE8.x+d*vx,y:GATE8.y+d*vy};
+  }
+  var DL320=doglegEndPt(320,20), DL360=doglegEndPt(360,20);
+  function distToSegment(px,py,x1,y1,x2,y2){
+    var dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
+    if(!l2) return Math.hypot(px-x1,py-y1);
+    var t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/l2));
+    return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+  }
+  function isInDogleg(a){
+    return Math.min(distToSegment(a.x,a.y,RWY2.x,RWY2.y,GATE8.x,GATE8.y),
+      distToSegment(a.x,a.y,GATE8.x,GATE8.y,DL320.x,DL320.y),
+      distToSegment(a.x,a.y,GATE8.x,GATE8.y,DL360.x,DL360.y)) <= 2.2;
+  }
+  function allChkDone(a){ var items=listFor(a); return items.length>0 && items.every(function(c){return !!a.chk[c.k];}); }
+  function removeAircraft(a,reason){
+    var ix=AC.indexOf(a); if(ix<0) return;
+    AC.splice(ix,1); if(sel===a) sel=null;
+    if(mine===a) mine=AC.filter(function(x){return x.ctl;})[0]||null;
+    log('sys',reason); renderTargets(); renderMine(); renderChk();
+  }
+
+  var AREAS = [
+    {brg:120, nm:13, r:5, mva:2500},
+    {brg:220, nm:25, r:5, mva:2500},
+    {brg:185, nm:15, r:3, mva:2000}
+  ];
+  AREAS.forEach(function(a){
+    a.x = a.nm*Math.sin(a.brg*Math.PI/180);
+    a.y = a.nm*Math.cos(a.brg*Math.PI/180);
+    a.fill = a.mva >= 2500 ? 'rgba(40,120,170,.17)' : 'rgba(109,40,217,.15)';
+    a.line = a.mva >= 2500 ? 'rgba(40,120,170,.75)' : 'rgba(109,40,217,.75)';
+    a.text = a.mva >= 2500 ? 'rgba(40,120,170,.95)' : 'rgba(91,33,182,.95)';
+  });
+  function mvaAt(brg,nm){
+    var best = 0;
+    if(nm <= 5) best = 2500;
+    var px = nm*Math.sin(brg*Math.PI/180), py = nm*Math.cos(brg*Math.PI/180);
+    AREAS.forEach(function(a){
+      if(Math.hypot(px - a.x, py - a.y) <= a.r && a.mva > best) best = a.mva;
+    });
+    if(best) return best;
+    brg = norm(brg);
+    if(nm >= 20 && brg >= 250 && brg < 360) return 3400;
+    return 1500;
+  }
+
+  function safeInitialMva(brg, nm, trk, spd){
+    var x = nm*Math.sin(brg*Math.PI/180), y = nm*Math.cos(brg*Math.PI/180);
+    var maxM = mvaAt(brg, nm);
+    var vx = (spd/3600)*Math.sin(trk*Math.PI/180);
+    var vy = (spd/3600)*Math.cos(trk*Math.PI/180);
+    for(var t = 10; t <= 90; t += 10){
+      var nx = x + vx*t, ny = y + vy*t;
+      var r = Math.hypot(nx, ny), b = norm(Math.atan2(nx, ny)*180/Math.PI);
+      var m = mvaAt(b, r);
+      if(m > maxM) maxM = m;
+    }
+    return maxM;
+  }
+
+  // ---------- checklist ----------
+  function renderChk(){
+    if(role !== 'ctl') return;
+    chkEl.innerHTML = '';
+    var work = AC.filter(function(a){ return a.ctl; });
+    if(!work.length){ chkEl.innerHTML = '<div class="hint">No aircraft on frequency yet.</div>'; return; }
+    work.forEach(function(a){
+      var items = listFor(a);
+      var n = items.filter(function(c){ return a.chk[c.k]; }).length;
+      var box = document.createElement('div');
+      box.className = 'chkblock' + (a === mine ? ' on' : '');
+      var hd = document.createElement('div'); hd.className = 'hd';
+      hd.innerHTML = '<span class="cs">' + a.cs + '</span>' +
+        '<span class="kind ' + (a.kind === 'ifr' ? 'ifr">IFR' : 'vfr">VFR') + '</span>' +
+        '<span class="cnt">' + n + ' / ' + items.length + '</span>';
+      hd.addEventListener('click', function(){ mine = a; renderChk(); renderMine(); renderTargets(); });
+      box.appendChild(hd);
+      var row = document.createElement('div'); row.className = 'chk';
+      items.forEach(function(c){
+        var b = document.createElement('button');
+        b.setAttribute('aria-pressed', a.chk[c.k] ? 'true' : 'false');
+        b.innerHTML = '<span class="k">' + c.k + '</span><span class="n">' + c.n + '</span>';
+        b.addEventListener('click', function(){
+          a.chk[c.k] = !a.chk[c.k];
+          if(c.k === 'W' && a.chk[c.k] && running){
+            log('pilot','"' + a.cs + ' has the weather, ' + a.type + ', requesting ' + a.intent + ' at Millington."');
+          }
+          if(c.k === 'L'){
+            a.tSpd = a.chk[c.k] ? a.appSpd : a.initSpd;
+            if(a.chk[c.k] && running){
+              log('pilot','"' + a.cs + ', three down and locked, slowing to ' + a.appSpd + ' knots."');
+            }
+          }
+          renderChk();
+        });
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+      if(a.ctl && allChkDone(a) && isInDogleg(a) && a.phase !== 'inbound'){
+        var co=document.createElement('button'); co.className='wide';
+        co.style.cssText='margin-top:7px;background:var(--live);border-color:var(--live);color:var(--bg);font-weight:700';
+        co.textContent='Coordinate · ' + a.cs + ' (' + a.intent + ')';
+        co.addEventListener('click',function(){ coordinateAircraft(a); }); box.appendChild(co);
+      }
+      if(a.ctl && a.phase === 'inbound' && rangeOf(a) <= 5 && !a.parPrompted){
+        var par=document.createElement('button'); par.className='wide'; par.style.cssText='margin-top:7px;border-color:var(--live);color:var(--live);font-weight:700';
+        par.textContent='5 NM Final Gate · Coordinate PAR / Tower · ' + a.cs;
+        par.addEventListener('click',function(){ a.parPrompted=true; log('me','"' + a.cs + ', request PAR/Tower coordination at the 5 mile final gate."'); log('pilot','"' + a.cs + ', roger, ready for PAR."'); par.disabled=true; }); box.appendChild(par);
+      }
+      chkEl.appendChild(box);
+    });
+  }
+  function tick(a, k){
+    if(!a || !a.ctl) return;
+    if(!listFor(a).some(function(c){ return c.k === k; })) return;
+    if(a.chk[k]) return;
+    a.chk[k] = true;
+    if(k === 'L') a.tSpd = a.chk[k] ? a.appSpd : a.initSpd;
+    renderChk();
+  }
+  function coordinateAircraft(a){
+    if(!a || !a.ctl || !allChkDone(a) || !isInDogleg(a)) return;
+    if(/full stop/i.test(a.intent) && a.phase !== 'ready'){
+      log('me','"' + a.cs + ', coordinate handoff to Tower for full stop."');
+      log('pilot','"' + a.cs + ', landing complete, aircraft leaving the scope."');
+      removeAircraft(a,a.cs + ' completed full-stop landing and was removed from the scope.'); return;
+    }
+    // Intercept the 160° final approach course using the shortest turn direction.
+    var course = 160;
+    var signedDelta = ((course - norm(a.hdg) + 540) % 360) - 180;
+    a.phase='inbound'; a.tHdg=course;
+    a.turn = Math.abs(signedDelta) < 0.5 ? 0 : (signedDelta > 0 ? 1 : -1);
+    a.tAlt=Math.min(a.alt,2000); a.parPrompted=false;
+    a.chk.L = !!a.chk.L; // retain landing check and approach-speed setting
+    log('me','"' + a.cs + ', coordinate for PAR approach, intercept heading one six zero, shortest turn to final course."');
+    log('pilot','"' + a.cs + ', turning ' + (signedDelta > 0.5 ? 'right' : signedDelta < -0.5 ? 'left' : 'no turn') + ' to intercept the 160° final course for ' + a.intent + '."');
+    statusEl.textContent=a.cs+' intercepting the 160° final approach course.';
+    renderChk(); renderTargets();
+  }
+
+  // ---------- scenario ----------
+  function spawn(){
+    AC = []; sel = null; mine = null; tries = 0; booms = []; trails = {}; renderChk();
+    var usedCs = {};
+    for(var i=0;i<3;i++){
+      var cs = makeCs(usedCs); usedCs[cs] = 1;
+      var ty = pick(TYPES), brg = rnd(0,360), nm = rnd(13,26);
+      var trk = norm(brg + 180 + rnd(-45,45));
+      var spd = Math.round(ty.spd + rnd(-15,15));
+      var m = safeInitialMva(brg, nm, trk, spd);
+      var minAlt = Math.ceil((m + 300)/100)*100;
+      var maxAlt = CEIL - 200;
+      var alt = Math.min(maxAlt, Math.max(minAlt, Math.round(rnd(minAlt, maxAlt)/100)*100));
+      var secondary = Math.random() < 0.62;
+      AC.push({
+        id: 'a' + i, cs: cs,
+        type: ty.t, spd: spd, initSpd: spd, tSpd: spd, appSpd: appSpdFor(ty.t, spd),
+        x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
+        hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
+        mode: secondary ? 'secondary' : 'primary',
+        squawk: secondary ? '1200' : null,
+        intent: pick(INT), trail: [], reported: null, warn: -999, ident: false, chk: {}, phase: 'normal', parPrompted: false
+      });
+    }
+    mine = AC[Math.floor(Math.random()*AC.length)];
+    mine.ctl = true; mine.kind = 'vfr'; mine.chk = {};
+    renderTargets(); renderMine(); renderChk();
+  }
+
+  function addAircraft(kind){
+    if(!running){ log('sys','Start a scenario first.'); return null; }
+    var used = {}; AC.forEach(function(a){ used[a.cs] = 1; if(a.squawk) used[a.squawk] = 1; });
+    var ty = pick(TYPES), brg = rnd(0,360), nm = rnd(22,28);
+    var trk = norm(brg + 180 + rnd(-40,40));
+    var spd = Math.round(ty.spd + rnd(-15,15));
+    var m = safeInitialMva(brg, nm, trk, spd);
+    var minAlt = Math.ceil((m + 300)/100)*100;
+    var maxAlt = CEIL - 200;
+    var alt = kind === 'ifr' ? 6000 : Math.min(maxAlt, Math.max(minAlt, Math.round(rnd(minAlt, maxAlt)/100)*100));
+    var secondary = kind === 'ifr' ? true : Math.random() < 0.6;
+    var a = {
+      id: 'a' + (Date.now() % 100000) + Math.floor(Math.random()*90),
+      cs: makeCs(used),
+      type: ty.t, spd: spd, initSpd: spd, tSpd: spd, appSpd: appSpdFor(ty.t, spd),
+      x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
+      hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
+      mode: secondary ? 'secondary' : 'primary',
+      squawk: secondary ? '1200' : null,
+      intent: pick(INT), trail: [], reported: null, warn: -999,
+      ident: false, ctl: true, kind: kind, chk: {}, phase: 'normal', parPrompted: false
+    };
+    AC.push(a);
+    if(kind === 'ifr'){
+      log('pilot','"NMN Arrival, ' + a.cs + ', ' + Math.round(nm) + ' miles ' + compass8(brg) +
+          ', level ' + spokenAlt(alt) + ', IFR for ' + a.intent + ' at Millington."');
+      log('sys','IFR aircraft spawned at 6,000 feet — descend and vector it (D V), then run the rest of the card.');
+    } else {
+      log('pilot','"NMN Arrival, ' + a.cs + ', ' + Math.round(nm) + ' miles ' + compass8(brg) +
+          ', ' + spokenAlt(alt) + ', VFR, requesting ' + a.intent + ' at Millington."');
+      log('sys','VFR request — weather, clearance, radar contact, vector (W C R V).');
+    }
+    if(!mine) mine = a;
+    renderTargets(); renderMine(); renderChk();
+    return a;
+  }
+
+  function explode(a, why){
+    var mode = boomMode ? boomMode.value : 'continue';
+    a.violated = true; a.boomed = true;
+    if(mode !== 'off'){
+      var parts = [];
+      for(var i=0;i<26;i++){
+        var ang = Math.random()*Math.PI*2, sp = rnd(18,70);
+        parts.push({x:a.x, y:a.y, vx:Math.cos(ang)*sp/60, vy:Math.sin(ang)*sp/60, life:1});
+      }
+      booms.push({x:a.x, y:a.y, age:0, parts:parts});
+    }
+    log('alert','*** ' + a.cs + ' — ' + why + ' ***');
+    if(mode !== 'remove'){
+      if(mode === 'continue') log('sys', a.cs + ' stays on the scope in red — get it back inside the airspace.');
+      renderTargets(); renderMine(); renderChk();
+      return;
+    }
+    var i2 = AC.indexOf(a);
+    if(i2 >= 0) AC.splice(i2,1);
+    if(sel === a) sel = null;
+    if(a.ctl){
+      var left = AC.filter(function(x){ return x.ctl; });
+      if(a === mine) mine = left[0] || null;
+      if(!left.length){
+        running = false; pauseBtn.disabled = true;
+        statusEl.textContent = 'Scenario over — press start for a new one.';
+        log('sys','No aircraft left on frequency. Press start for a new scenario.');
+      }
+    }
+    renderTargets(); renderMine(); renderChk();
+  }
+
+  function step(dt){
+    for(var i=0;i<AC.length;i++){
+      var a = AC[i];
+      if(Math.abs(norm(a.tHdg) - norm(a.hdg)) > 0.4){
+        var diff = norm(a.tHdg) - norm(a.hdg);
+        if(a.turn === 0){ if(diff > 180) diff -= 360; if(diff < -180) diff += 360; a.turn = diff > 0 ? 1 : -1; }
+        var r = 3*dt*a.turn;
+        var rem = ((a.turn > 0 ? (norm(a.tHdg) - norm(a.hdg) + 360) : (norm(a.hdg) - norm(a.tHdg) + 360)) % 360);
+        if(Math.abs(r) >= rem){ a.hdg = a.tHdg; a.turn = 0; } else { a.hdg = norm(a.hdg + r); }
+      } else { a.hdg = a.tHdg; a.turn = 0; }
+
+      if(a.alt !== a.tAlt){
+        var vs = 25*dt*(a.tAlt > a.alt ? 1 : -1);
+        if(Math.abs(a.tAlt - a.alt) <= Math.abs(vs)) a.alt = a.tAlt; else a.alt += vs;
+      }
+
+      if(a.tSpd != null && a.spd !== a.tSpd){
+        var ds = 2.5*dt*(a.tSpd > a.spd ? 1 : -1);
+        if(Math.abs(a.tSpd - a.spd) <= Math.abs(ds)) a.spd = a.tSpd; else a.spd += ds;
+        if(simSec % 1 < dt*rate) renderTargets();
+      }
+
+      var d = a.spd/3600*dt;
+      a.x += d*Math.sin(a.hdg*Math.PI/180);
+      a.y += d*Math.cos(a.hdg*Math.PI/180);
+      if(simSec % 4 < dt*rate){ a.trail.unshift({x:a.x,y:a.y}); if(a.trail.length > 4) a.trail.pop(); }
+
+      var nm = rangeOf(a), brg = bearingOf(a), m = mvaAt(brg,nm);
+
+      var legal = (a.alt <= CEIL + 20) && (a.alt >= m - 50 || nm <= 2);
+      if(legal) a.boomed = false;
+
+      // Only controller-owned aircraft are subject to training violation alerts/explosions.
+      if(a.ctl && a.alt > CEIL + 20 && !a.boomed){
+        var before = AC.length;
+        explode(a,'TOOK IT ABOVE 5,000 — out of the arrival airspace');
+        if(AC.length < before){ i--; continue; }
+      }
+
+      // Suppress MVA/low-altitude alerts during a coordinated approach and its missed-approach climbout.
+      if(a.ctl && a.phase !== 'inbound' && a.phase !== 'climbout' && a.alt < m - 50 && nm > 2){
+        if(simSec - a.warn > 22){
+          a.warn = simSec;
+          log('alert','LOW ALTITUDE ALERT · ' + (a === mine ? a.cs : 'unknown target') + ' at ' +
+              fmtAlt(Math.round(a.alt/100)*100) + ', MVA in that area is ' + fmtAlt(m) + ' — fix it within 10 seconds.');
+          a.deadline = simSec + 10;
+        } else if(a.deadline && simSec > a.deadline && !a.boomed){
+          var before2 = AC.length;
+          explode(a,'BELOW THE ' + fmtAlt(m) + ' MVA');
+          if(AC.length < before2){ i--; continue; }
+        }
+      } else { a.deadline = 0; }
+
+      // Approach/GA state machine runs only for controlled aircraft.
+      if(a.ctl && a.phase === 'inbound'){
+        if(nm <= 0.6){
+          if(/full stop/i.test(a.intent)){
+            log('pilot','"' + a.cs + ', landing complete, full stop."');
+            removeAircraft(a,a.cs + ' completed the full-stop landing and was removed from the scope.');
+            i--; continue;
+          }
+          a.phase='climbout'; a.intent='a PAR to a full stop'; a.kind='ifr';
+          a.tHdg=220; a.turn=1; a.tAlt=1500; a.chk={R:false,MACO:false,V:false,POS:false,L:false};
+          a.tSpd=a.initSpd; a.parPrompted=false;
+          log('pilot','"' + a.cs + ', missed approach, climbing out, heading two two zero, maintaining one thousand five hundred; request vectors for a PAR to a full stop."');
+          log('sys',a.cs+' is in IFR climbout. Checklist reset to R · MACO · V · POS · L; re-vector toward the dogleg.');
+          renderChk(); renderTargets();
+        }
+      } else if(a.ctl && a.phase === 'climbout'){
+        // Once the aircraft is back in the dogleg, it can be coordinated again after its new checklist is complete.
+        if(isInDogleg(a)){
+          a.phase='ready';
+          log('sys',a.cs+' returned to the dogleg; IFR climbout checklist remains active. Complete R · MACO · V · POS · L, then coordinate again.');
+          renderChk();
+        }
+      }
+
+      if(a.ctl && a.phase === 'inbound' && nm <= 5 && !a.parPrompted){
+        a.parPrompted=true;
+        log('sys','5 NM FINAL GATE · Coordinate PAR/Tower for '+a.cs+'.');
+        renderChk();
+      }
+
+      if(nm > RANGE + 4){
+        if(a.ctl){
+          log('sys', a.cs + ' flew out of radar coverage.');
+          AC.splice(i,1); i--; if(sel === a) sel = null;
+          var rest = AC.filter(function(x){ return x.ctl; });
+          if(a === mine) mine = rest[0] || null;
+          if(!rest.length){ running = false; pauseBtn.disabled = true; statusEl.textContent = 'Scenario over — press start for a new one.'; }
+        } else {
+          AC.splice(i,1); i--; if(sel === a) sel = null;
+        }
+        renderTargets(); renderMine(); renderChk();
+      }
+    }
+    // Refresh checklist coordination prompts periodically as aircraft enter/leave the dogleg and 5 NM gate.
+    if(simSec % 1 < dt * Math.max(rate, 0.2)) renderChk();
+    for(var b=0;b<booms.length;b++){
+      var bo = booms[b]; bo.age += dt;
+      bo.parts.forEach(function(p){ p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.75; });
+      if(bo.age > 1.6){ booms.splice(b,1); b--; }
+    }
+  }
+
+  // ---------- drawing ----------
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function resize(){
+    var r = cv.parentNode.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(r.width*dpr); cv.height = Math.round(r.height*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    cx = r.width/2; cy = r.height/2;
+    ppn = (Math.min(r.width, r.height)/2 - 26)/RANGE;
+    draw();
+  }
+  function sx(v){ return cx + v*ppn; }
+  function sy(v){ return cy - v*ppn; }
+  function polar(b,nm){ return [sx(nm*Math.sin(b*Math.PI/180)), sy(nm*Math.cos(b*Math.PI/180))]; }
+  function wedge(b1,b2,rIn,rOut,fill){
+    ctx.beginPath();
+    ctx.arc(cx,cy,rOut*ppn,(b1-90)*Math.PI/180,(b2-90)*Math.PI/180,false);
+    ctx.arc(cx,cy,rIn*ppn,(b2-90)*Math.PI/180,(b1-90)*Math.PI/180,true);
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  }
+
+  function drawScope(list, boomList){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.beginPath(); ctx.arc(cx,cy,5*ppn,0,Math.PI*2); ctx.fillStyle = css('--mva-in'); ctx.fill();
+    wedge(0,360,5,RANGE,css('--mva-s'));
+    wedge(250,360,20,RANGE,css('--mva-nw'));
+    AREAS.forEach(function(a){
+      ctx.beginPath(); ctx.arc(sx(a.x), sy(a.y), a.r*ppn, 0, Math.PI*2);
+      ctx.fillStyle = a.fill; ctx.fill();
+    });
+
+    ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1;
+    for(var nm=5; nm<=RANGE; nm+=5){ ctx.beginPath(); ctx.arc(cx,cy,nm*ppn,0,Math.PI*2); ctx.stroke(); }
+    ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(cx,cy,5*ppn,0,Math.PI*2); ctx.stroke();
+    var dv1 = polar(250,20), dv2 = polar(250,RANGE), dv3 = polar(360,20), dv4 = polar(360,RANGE);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(dv1[0],dv1[1]); ctx.lineTo(dv2[0],dv2[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dv3[0],dv3[1]); ctx.lineTo(dv4[0],dv4[1]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,20*ppn,(250-90)*Math.PI/180,(360-90)*Math.PI/180,false); ctx.stroke();
+    AREAS.forEach(function(a){
+      ctx.strokeStyle = a.line; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(sx(a.x), sy(a.y), a.r*ppn, 0, Math.PI*2); ctx.stroke();
+    });
+    ctx.strokeStyle = css('--ring');
+
+    ctx.fillStyle = css('--dim'); ctx.font = '10px system-ui';
+    for(var b=0;b<360;b+=30){
+      var a1 = polar(b,RANGE), a2 = polar(b,RANGE-1.2), lb = polar(b,RANGE+1.9);
+      ctx.strokeStyle = css('--ring'); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke();
+      ctx.fillText(b === 0 ? '360' : hdg3(b), lb[0], lb[1]);
+    }
+    for(var n2=10; n2<RANGE; n2+=10){ var rp = polar(180,n2-0.6); ctx.fillText(String(n2), rp[0], rp[1]); }
+
+    ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var l34 = polar(305,25), l15 = polar(160,25), l25 = polar(45,3.1);
+    ctx.fillStyle = 'rgba(180,120,30,.85)'; ctx.fillText('3400', l34[0], l34[1]);
+    ctx.fillStyle = 'rgba(40,140,90,.85)';  ctx.fillText('1500', l15[0], l15[1]);
+    ctx.fillStyle = 'rgba(40,120,170,.9)';  ctx.font = '9px system-ui'; ctx.fillText('2500', l25[0], l25[1]);
+    ctx.font = '10px system-ui';
+    AREAS.forEach(function(a){
+      ctx.fillStyle = a.text; ctx.fillText(String(a.mva), sx(a.x), sy(a.y));
+    });
+    ctx.font = '10px system-ui';
+
+    var e1 = polar(340,1.9), e2 = polar(160,1.9);
+    ctx.strokeStyle = css('--rwy'); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = css('--dim');
+    ctx.fillText('NMN · RWY 16', cx + 10, cy + 12);
+
+    // Final approach course (2 NM to 8 NM along 340°) + Doglegs from 8 NM out along 320° and 360° stopping at 20 NM
+    var f1 = polar(340,2), f8 = polar(340,8);
+    var x8 = 8*Math.sin(340*Math.PI/180), y8 = 8*Math.cos(340*Math.PI/180);
+    function doglegEnd(hdg, maxR){
+      var rad = hdg*Math.PI/180, vx = Math.sin(rad), vy = Math.cos(rad);
+      var b = 2*(x8*vx + y8*vy), c = (x8*x8 + y8*y8) - maxR*maxR;
+      var d = (-b + Math.sqrt(Math.max(0, b*b - 4*c)))/2;
+      return [sx(x8 + d*vx), sy(y8 + d*vy)];
+    }
+    var dl320 = doglegEnd(320, 20), dl360 = doglegEnd(360, 20);
+    ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1.2; ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.moveTo(f1[0],f1[1]); ctx.lineTo(f8[0],f8[1]);
+    ctx.moveTo(f8[0],f8[1]); ctx.lineTo(dl320[0],dl320[1]);
+    ctx.moveTo(f8[0],f8[1]); ctx.lineTo(dl360[0],dl360[1]);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    (list||[]).forEach(function(a, idx){
+      var X = sx(a.x), Y = sy(a.y), isSel = (role === 'ctl' && sel && sel.id === a.id), tagged = !!a.tag;
+      var col = a.violated ? css('--warn') : (a.mode === 'secondary' ? css('--sec') : css('--pri'));
+      var tr = a.trail || trails[a.id] || [];
+      tr.forEach(function(t,i){
+        ctx.globalAlpha = 0.42 - i*0.09; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), 2.1, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      if(isSel){
+        ctx.strokeStyle = css('--sel'); ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(X,Y,11,0,Math.PI*2); ctx.stroke();
+      }
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
+      if(a.mode === 'secondary') ctx.fillRect(X-3.5, Y-3.5, 7, 7);
+      else { ctx.beginPath(); ctx.moveTo(X-4,Y+4); ctx.lineTo(X+4,Y-4); ctx.stroke(); }
+      var lx = X + Math.sin(a.hdg*Math.PI/180)*16, ly = Y - Math.cos(a.hdg*Math.PI/180)*16;
+      ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(lx,ly); ctx.stroke();
+
+      ctx.font = '11px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      var bx = X + 10, by = Y - 6, line = 0;
+      if(tagged){ ctx.fillStyle = css('--sel'); ctx.fillText(a.tag, bx, by); line++; }
+      if(a.mode === 'secondary'){
+        ctx.fillStyle = tagged ? css('--dim') : col;
+        ctx.fillText(a.squawk, bx, by + line*12); line++;
+        ctx.fillStyle = css('--dim');
+        ctx.fillText(Math.round(a.alt/100) + '   ' + Math.round(a.spd/10), bx, by + line*12);
+      } else if(tagged || a.reported != null){
+        ctx.fillStyle = css('--dim');
+        ctx.fillText(a.reported != null ? '(' + Math.round(a.reported/100) + ')' : 'no mode C', bx, by + line*12);
+      }
+    });
+
+    if(mStart && mNow && moved){
+      ctx.strokeStyle = css('--sel'); ctx.lineWidth = 1.3; ctx.setLineDash([6,4]);
+      ctx.beginPath(); ctx.moveTo(mStart.px, mStart.py); ctx.lineTo(mNow.px, mNow.py); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = css('--sel');
+      ctx.beginPath(); ctx.arc(mStart.px, mStart.py, 3, 0, Math.PI*2); ctx.fill();
+    }
+
+    (boomList||[]).forEach(function(bo){
+      var X = sx(bo.x), Y = sy(bo.y), k = Math.min(bo.age/1.6, 1);
+      ctx.strokeStyle = 'rgba(232,112,95,' + (1-k).toFixed(2) + ')';
+      ctx.lineWidth = 3*(1-k) + 0.5;
+      ctx.beginPath(); ctx.arc(X,Y, 6 + k*46, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(242,163,60,' + (0.8*(1-k)).toFixed(2) + ')';
+      ctx.beginPath(); ctx.arc(X,Y, 10*(1-k) + 2, 0, Math.PI*2); ctx.fill();
+      (bo.parts||[]).forEach(function(p){
+        if(p.life <= 0) return;
+        ctx.fillStyle = 'rgba(242,163,60,' + Math.max(p.life,0).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(sx(p.x), sy(p.y), 2.2*p.life + 0.6, 0, Math.PI*2); ctx.fill();
+      });
+    });
+  }
+
+  function draw(){
+    if(role === 'ply'){
+      var fresh = remote && (performance.now() - lastRx < 4000);
+      var hasTargets = fresh && remote.ac && remote.ac.length > 0;
+      waitEl.hidden = !!hasTargets;
+      if(!fresh){
+        waitEl.textContent = 'Connecting to controller in room "' + roomName + '"…';
+      } else if(!hasTargets){
+        waitEl.textContent = 'Connected! Waiting for the controller to start a scenario…';
+      }
+      drawScope(fresh ? remote.ac : [], fresh ? remote.booms : []);
+      clockEl.textContent = fresh ? remote.clock : '--:--';
+    } else {
+      drawScope(AC.map(function(a){
+        return {id:a.id, x:a.x, y:a.y, hdg:a.hdg, alt:a.alt, spd:a.spd, mode:a.mode,
+                squawk:a.squawk, reported:a.reported, trail:a.trail, violated:!!a.violated,
+                tag:(a.ctl && a.ident) ? a.cs : null};
+      }), booms);
+    }
+  }
+
+  // ---------- log + panels ----------
+  function clock(){
+    var m = Math.floor(simSec/60), s = Math.floor(simSec%60);
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  var audioOn = false, voice = null;
+  var synth = window.speechSynthesis || null;
+  function pickVoice(){
+    if(!synth) return;
+    var vs = synth.getVoices() || [];
+    voice = vs.filter(function(v){ return /^en[-_]US/i.test(v.lang); })[0]
+         || vs.filter(function(v){ return /^en/i.test(v.lang); })[0] || null;
+  }
+  if(synth){ pickVoice(); synth.onvoiceschanged = pickVoice; }
+  var DIG = {'0':'zero','1':'one','2':'two','3':'three','4':'four','5':'five','6':'six','7':'seven','8':'eight','9':'niner'};
+  function digits(s){ return s.split('').map(function(c){ return DIG[c] || c; }).join(' '); }
+  function sayify(t){
+    return String(t)
+      .replace(/"/g,'')
+      .replace(/\b(HEADING|heading|Heading)\s+(\d{3})\b/g, function(m,a,b){ return a + ' ' + digits(b); })
+      .replace(/\b(SQUAWK|squawk|Squawk)\s+(\d{4})\b/g, function(m,a,b){ return a + ' ' + digits(b); })
+      .replace(/340\.2/g, 'three four zero point two')
+      .replace(/\bRY\b/g, 'runway')
+      .replace(/\bC\/S\b/g, 'call sign')
+      .replace(/\bNMN\b/g, 'Millington')
+      .replace(/\bPL\b/g, 'Papa Lima').replace(/\bBS\b/g, 'Blacksheep').replace(/\bJV\b/g, 'Juliet Victor')
+      .replace(/\bIFR\b/g, 'I F R').replace(/\bVFR\b/g, 'V F R')
+      .replace(/\bPAR\b/g, 'P A R').replace(/\bASR\b/g, 'A S R')
+      .replace(/\bMVA\b/g, 'M V A');
+  }
+  function speak(text){
+    if(!audioOn || !synth) return;
+    try {
+      var u = new SpeechSynthesisUtterance(sayify(text));
+      u.rate = 1; u.pitch = 1; if(voice) u.voice = voice;
+      synth.speak(u);
+    } catch(e){}
+  }
+  audioBtn.addEventListener('click', function(){
+    if(!synth){ audioBtn.textContent = 'No speech support'; return; }
+    audioOn = !audioOn;
+    audioBtn.setAttribute('aria-pressed', audioOn ? 'true' : 'false');
+    audioBtn.textContent = audioOn ? '🔊 Audio on' : '🔇 Audio off';
+    if(audioOn){ pickVoice(); speak(role === 'ply' ? 'Audio on. You will hear the pilot replies.' : 'Audio on.'); }
+    else synth.cancel();
+  });
+
+  function log(kind, text){
+    if(role !== 'ctl') return;
+    if(kind === 'me' || kind === 'pilot' || kind === 'alert'){
+      if(kind === 'pilot' && room){ try { room.emit('say', {kind:kind, text:text}); } catch(e){} }
+      speak(text);
+    }
+    var e = document.createElement('div'); e.className = 'e';
+    var t = document.createElement('span'); t.className = 't'; t.textContent = clock();
+    var b = document.createElement('span'); b.className = kind; b.textContent = text;
+    e.appendChild(t); e.appendChild(b); logEl.appendChild(e);
+    logEl.scrollTop = logEl.scrollHeight;
+    while(logEl.children.length > 300) logEl.removeChild(logEl.firstChild);
+  }
+  function renderMine(){
+    if(role !== 'ctl') return;
+    var work = AC.filter(function(a){ return a.ctl; });
+    workEl.innerHTML = '';
+    if(!work.length){
+      mineEl.textContent = 'Press start for a new scenario.';
+      return;
+    }
+    if(work.indexOf(mine) < 0) mine = work[0];
+    work.forEach(function(a){
+      var b = document.createElement('button');
+      b.className = (a === mine ? 'on' : '');
+      b.innerHTML = '<span class="cs">' + a.cs + '</span><span class="n" style="color:var(--dim);font-size:11.5px">' +
+        a.type + (a.ifr ? ' · IFR' : '') + '</span><span class="tag ' + (a.ident ? 'yes">IDENT' : 'nope">UNIDENT') + '</span>';
+      b.addEventListener('click', function(){ mine = a; renderMine(); renderTargets(); renderChk(); });
+      workEl.appendChild(b);
+    });
+    mineEl.textContent = mine
+      ? (mine.ident
+          ? mine.cs + ' is identified · ' + (mine.mode === 'secondary' ? 'secondary, squawk ' + mine.squawk : 'primary, radar only')
+          : mine.cs + ' is not identified yet — instructions still go to it.')
+      : '';
+  }
+  function renderTargets(){
+    if(role !== 'ctl') return;
+    tgtEl.innerHTML = '';
+    if(!AC.length){ tgtEl.innerHTML = '<div class="hint">No targets. Press start.</div>'; return; }
+    AC.forEach(function(a,i){
+      var b = document.createElement('button');
+      b.className = 'tgt' + (a === sel ? ' on' : '');
+      var left = (a.ctl && a.ident) ? '<span class="cs">' + a.cs + '</span>'
+        : (a.mode === 'secondary' ? '<span class="sq">' + a.squawk + '</span>' : '<span class="sq">TARGET ' + (i+1) + '</span>');
+      var meta = a.mode === 'secondary' ? Math.round(a.alt/100) + ' · ' + Math.round(a.spd) + ' kt'
+        : (a.reported != null ? '(' + Math.round(a.reported/100) + ')' : 'no data');
+      b.innerHTML = left + '<span class="badge ' + (a.mode === 'secondary' ? 'b-sec">SEC' : 'b-pri">PRI') +
+        '</span>' + (a.violated ? '<span class="badge" style="color:var(--warn)">BUST</span>' : '') +
+        '<span class="meta">' + meta + '</span>';
+      b.addEventListener('click', function(){
+        sel = a; renderTargets(); draw();
+        identBtn.disabled = !(running && mine && !mine.ident);
+      });
+      tgtEl.appendChild(b);
+    });
+  }
+
+  // ---------- commands ----------
+  function cmd(kind){
+    if(role !== 'ctl') return;
+    if(!running || !mine){ log('sys','Simulator is not running.'); return; }
+    var a = mine, alt = Math.round(Number(altIn.value)/100)*100, hdg = norm(Number(hdgIn.value));
+
+    if(kind === 'climb' || kind === 'descend' || kind === 'maintain'){
+      if(!(alt >= 500 && alt <= 12000)){ log('sys','Altitude must be 500–12,000.'); return; }
+      if(kind === 'climb' && alt < a.alt - 100){ log('sys','That is below the aircraft — use descend and maintain.'); return; }
+      if(kind === 'descend' && alt > a.alt + 100){ log('sys','That is above the aircraft — use climb and maintain.'); return; }
+      a.tAlt = kind === 'maintain' ? (alt || a.alt) : alt;
+      var verb = kind === 'climb' ? 'CLIMB AND MAINTAIN' : kind === 'descend' ? 'DESCEND AND MAINTAIN' : 'MAINTAIN';
+      log('me','"' + a.cs + ', ' + verb + ' ' + spokenAlt(a.tAlt).toUpperCase() + '."');
+      log('pilot','"' + (kind === 'maintain' ? 'Maintain ' : kind === 'climb' ? 'Climb and maintain ' : 'Descend and maintain ') +
+          spokenAlt(a.tAlt) + ', ' + a.cs + '."');
+      if(kind === 'descend') tick(a,'D');
+      if(kind === 'climb') tick(a,'MACO');
+      var m = mvaAt(bearingOf(a), rangeOf(a));
+      if(a.tAlt > CEIL) log('alert','That is above 5,000 — it will leave the arrival airspace.');
+      else if(a.tAlt < m - 50) log('alert','Assigned altitude is below the ' + fmtAlt(m) + ' MVA for that area.');
+    }
+    else if(kind === 'left' || kind === 'right'){
+      if(!(hdg >= 1 && hdg <= 360)){ log('sys','Heading must be 001–360.'); return; }
+      a.tHdg = hdg; a.turn = kind === 'left' ? -1 : 1;
+      log('me','"' + a.cs + ', TURN ' + (kind === 'left' ? 'LEFT' : 'RIGHT') + ' HEADING ' + hdg3(hdg) + '."');
+      log('pilot','"' + (kind === 'left' ? 'Left' : 'Right') + ' heading ' + hdg3(hdg) + ', ' + a.cs + '."');
+      tick(a,'V');
+      if(!a.ident) log('sys','Watch which target starts the turn.');
+    }
+    else if(kind === 'speed'){
+      var requestedSpeed=Math.round(Number(spdIn.value));
+      if(!(requestedSpeed >= 60 && requestedSpeed <= 350)){ log('sys','Speed must be between 60 and 350 knots.'); return; }
+      a.tSpd=requestedSpeed;
+      log('me','"' + a.cs + ', REDUCE SPEED TO ' + requestedSpeed + ' KNOTS."');
+      log('pilot','"Reducing speed to ' + requestedSpeed + ' knots, ' + a.cs + '."');
+    }
+    else if(kind === 'squawk'){
+      var code = String(sqIn.value || '').trim();
+      if(a.mode !== 'secondary'){
+        log('sys','Negative beacon — ' + a.cs + ' is a primary target, no transponder to assign a code to.');
+        return;
+      }
+      if(!/^[0-7]{4}$/.test(code)){ log('sys','Beacon codes are four digits, 0 through 7.'); return; }
+      if(/^(7500|7600|7700)$/.test(code)){ log('sys','7500 / 7600 / 7700 are emergency codes — pick another.'); return; }
+      var clash = code === '1200' ? null : AC.filter(function(x){ return x !== a && x.squawk === code; })[0];
+      if(clash){ log('sys','Code ' + code + ' is already on another target — pick a different one.'); return; }
+      a.squawk = code;
+      log('me','"' + a.cs + ', SQUAWK ' + code + '."');
+      log('pilot','"Squawk ' + code + ', ' + a.cs + '."');
+      if(!a.ident) log('sys','Look for the new code in the data blocks.');
+    }
+    else if(kind === 'pos'){
+      log('me','"' + a.cs + ', SAY POSITION."');
+      log('pilot','"' + a.cs + ' is ' + Math.round(rangeOf(a)) + ' miles ' + compass8(bearingOf(a)) + ' of Millington."');
+      tick(a,'POS');
+    }
+    else if(kind === 'hdgq'){
+      log('me','"' + a.cs + ', SAY HEADING."');
+      log('pilot','"' + a.cs + ' heading ' + hdg3(a.hdg) + '."');
+    }
+    else if(kind === 'altq'){
+      log('me','"' + a.cs + ', SAY ALTITUDE."');
+      var now = Math.round(a.alt/100)*100; a.reported = now;
+      if(Math.abs(a.tAlt - a.alt) > 150)
+        log('pilot','"' + a.cs + ' leaving ' + spokenAlt(now) + ' ' + (a.tAlt > a.alt ? 'climbing' : 'descending') + ' ' + spokenAlt(a.tAlt) + '."');
+      else log('pilot','"' + a.cs + ' level ' + spokenAlt(now) + '."');
+    }
+    else if(kind === 'all'){
+      log('me','"' + a.cs + ', SAY POSITION, HEADING AND ALTITUDE."');
+      var now2 = Math.round(a.alt/100)*100; a.reported = now2;
+      log('pilot','"' + a.cs + ' is ' + Math.round(rangeOf(a)) + ' miles ' + compass8(bearingOf(a)) +
+          ' of Millington, heading ' + hdg3(a.hdg) + ', ' +
+          (Math.abs(a.tAlt - a.alt) > 150
+            ? 'leaving ' + spokenAlt(now2) + ' ' + (a.tAlt > a.alt ? 'climbing' : 'descending') + ' ' + spokenAlt(a.tAlt)
+            : 'level ' + spokenAlt(now2)) + '."');
+      tick(a,'POS');
+    }
+    else if(kind === 'int'){
+      log('me','"' + a.cs + ', SAY INTENTIONS."');
+      log('pilot','"' + a.cs + ' is a ' + a.type + ', requesting ' + a.intent + ' at Millington."');
+    }
+    renderTargets(); renderMine(); renderChk();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-cmd]'), function(b){
+    b.addEventListener('click', function(){ cmd(b.dataset.cmd); });
+  });
+
+  // ---------- personal voice mode: conservative command parsing + auditable feedback ----------
+  function normalizeVoiceText(s){
+    return String(s || '').toLowerCase().replace(/[,.!?]/g,' ').replace(/\bdegrees?\b/g,' ')
+      .replace(/\bknots?\b/g,' ').replace(/\bflight level\b/g,' flightlevel ')
+      .replace(/\s+/g,' ').trim();
+  }
+  function parseSpokenNumber(s){
+    var x = String(s || '').toLowerCase().trim().replace(/\b(feet|foot|knots?|degrees?)\b/g,'').replace(/\s+/g,' ').trim();
+    if(/^\d+$/.test(x)) return Number(x);
+    var digitWords = {zero:'0',oh:'0',one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',niner:'9',nine:'9'};
+    var digitSequence = x.replace(/\b(zero|oh|one|two|three|four|five|six|seven|eight|niner|nine)\b/g,function(w){return digitWords[w]+' ';}).replace(/\s+/g,'').trim();
+    if(/^\d+$/.test(digitSequence)) return Number(digitSequence);
+    var small={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+    var total=0, current=0, tokens=x.replace(/-/g,' ').split(/\s+/), seen=false;
+    for(var i=0;i<tokens.length;i++){
+      var w=tokens[i]; if(w==='and') continue;
+      if(small[w]!==undefined){current+=small[w];seen=true;}
+      else if(w==='hundred'){current=(current||1)*100;seen=true;}
+      else if(w==='thousand'){total+=(current||1)*1000;current=0;seen=true;}
+      else return NaN;
+    }
+    return seen ? total+current : NaN;
+  }
+  function voiceResult(ok, message){
+    voiceFeedback.textContent = message;
+    voiceFeedback.style.color = ok ? 'var(--ok)' : 'var(--warn)';
+  }
+  // In solo voice play, spoken checklist keywords automatically check off the selected aircraft's card.
+  // The combined MACO checklist item accepts either the climb-out/after-completing or missed-approach phrase.
+  function autoChecklistFromSpeech(raw){
+    if(!voiceMode || role !== 'ctl' || !running || !mine || !mine.ctl) return false;
+    var s = normalizeVoiceText(String(raw || ''));
+    var matched = [];
+    function hit(re, key, label){
+      if(re.test(s) && listFor(mine).some(function(c){ return c.k === key; })){
+        var was = !!mine.chk[key];
+        tick(mine, key);
+        if(!was) matched.push(label || key);
+      }
+    }
+    hit(/\bweather\b/i, 'W', 'Weather (W)');
+    hit(/\bclearance\b/i, 'C', 'Clearance (C)');
+    hit(/\bradar contact\b/i, 'R', 'Radar Contact (R)');
+    hit(/\bvector(?:ing)? to (?:p\s*a\s*r|par)\b/i, 'V', 'Vector to PAR (V)');
+    hit(/\b(?:if no transmission|if there is no transmission|lost comm(?:unication)?|no transmission)\b/i, 'LC', 'No transmission (LC)');
+    hit(/\b(?:after completing|complete(?:d)?(?: the)? climb[ -]?out|climb[ -]?out complete)\b/i, 'MACO', 'After completing / climb-out (MACO)');
+    hit(/\bmiss(?:ed)?(?:ed)? approach\b/i, 'MACO', 'Missed approach (MACO)');
+    hit(/\b(?:\d+\s*)?mile(?:s)?\s+(?:of|from|out(?:side)?\s+)?millington(?:\s+airport)?\b/i, 'POS', 'Millington position (POS)');
+    hit(/\blanding check\b/i, 'L', 'Landing Check (L)');
+    if(mine.kind === 'ifr') hit(/\bdescend and maintain\b/i, 'D', 'Descend and Maintain (D)');
+    if(matched.length){
+      var msg = 'Auto-checked: ' + matched.join(', ') + '.';
+      voiceResult(true, msg);
+      log('sys', mine.cs + ' solo voice checklist: ' + msg);
+      renderChk();
+      return true;
+    }
+    return false;
+  }
+
+  function runVoiceCommand(raw, source){
+    var original = String(raw || '').trim();
+    if(!original){ voiceResult(false,'No command received. Nothing changed.'); return false; }
+    log('sys',(source === 'mic' ? 'MIC HEARD: ' : 'COMMAND INPUT: ') + '"' + original + '"');
+    var s = normalizeVoiceText(original);
+    var m, n;
+    // If a callsign starts the utterance, select that aircraft before parsing the instruction.
+    var prefixedAircraft = null;
+    AC.filter(function(a){return a.ctl;}).forEach(function(a){
+      var csNorm=normalizeVoiceText(a.cs).replace(/\s+/g,' ');
+      if(!prefixedAircraft && s.indexOf(csNorm+' ')===0) prefixedAircraft={aircraft:a,rest:s.slice(csNorm.length).trim()};
+    });
+    if(prefixedAircraft){
+      mine=prefixedAircraft.aircraft; s=prefixedAircraft.rest;
+      renderMine();renderTargets();renderChk();
+      log('sys','Callsign recognized: '+mine.cs+'.');
+    }
+    if(/\b(start|begin|new) (the )?(simulator|scenario)\b/.test(s)){
+      if(!running){ startBtn.click(); voiceResult(true,'Accepted: started a new scenario.'); }
+      else { voiceResult(false,'Simulator is already running. Say “new scenario” only if you want to reset it.'); }
+      return true;
+    }
+    if(/\b(pause|resume|continue) (the )?(simulator|simulation)?\b/.test(s) || /^(pause|resume|continue)$/.test(s)){
+      if(!running && !AC.length){ voiceResult(false,'Start a scenario first.'); return false; }
+      if((/\bpause\b/.test(s) && running) || ((/\bresume\b|\bcontinue\b/.test(s)) && !running)){ pauseBtn.click(); voiceResult(true,'Accepted: ' + pauseBtn.textContent.toLowerCase() + '.'); }
+      else { voiceResult(true,'No change: simulator is already ' + (running?'running':'paused') + '.'); }
+      return true;
+    }
+    if((m=s.match(/^select (?:aircraft )?(.+)$/))){
+      var wanted=m[1].replace(/\b(aircraft|callsign|call sign)\b/g,'').trim().toUpperCase();
+      var found=AC.filter(function(a){return a.ctl && a.cs.toUpperCase()===wanted;})[0]
+        || AC.filter(function(a){return a.ctl && a.cs.toUpperCase().replace(/\s+/g,'')===wanted.replace(/\s+/g,'');})[0];
+      if(!found){ voiceResult(false,'Aircraft not found. Use the exact callsign shown in My aircraft.'); return false; }
+      mine=found; renderMine(); renderTargets(); renderChk(); voiceResult(true,'Selected ' + found.cs + '.'); log('sys','Selected aircraft ' + found.cs + '.'); return true;
+    }
+    if(/\b(say|report|request) (all|position|heading|altitude|intentions)\b/.test(s)){
+      var req=s.match(/\b(all|position|heading|altitude|intentions)\b/)[1];
+      var k={position:'pos',heading:'hdgq',altitude:'altq',intentions:'int',all:'all'}[req];
+      cmd(k); voiceResult(true,'Accepted: ' + req + ' request sent.'); return true;
+    }
+    if(/^(position|heading|altitude|intentions|all)$/.test(s)){
+      var k2={position:'pos',heading:'hdgq',altitude:'altq',intentions:'int',all:'all'}[s];
+      cmd(k2); voiceResult(true,'Accepted: ' + s + ' request sent.'); return true;
+    }
+    if(/\bidentify\b/.test(s)){
+      if(!running || !mine || !sel){ voiceResult(false,'Select a radar target and an aircraft before identifying.'); return false; }
+      identBtn.click(); voiceResult(true,'Identify request processed. Check the log for the result.'); return true;
+    }
+    if(!running || !mine){ voiceResult(false,'Start the simulator and select an aircraft first. No aircraft state changed.'); return false; }
+    if((m=s.match(/^(?:turn )?(left|right)(?: turn)? heading (.+)$/))){
+      n=parseSpokenNumber(m[2]); if(!(n>=1 && n<=360)){voiceResult(false,'Heading must be 001–360. Nothing changed.');return false;}
+      hdgIn.value=n; cmd(m[1]==='left'?'left':'right'); voiceResult(true,'Accepted: turn '+m[1]+' heading '+hdg3(n)+'.'); return true;
+    }
+    if((m=s.match(/^(?:climb and maintain|climb to|climb maintain) (.+)$/))){
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
+      altIn.value=n; cmd('climb'); voiceResult(true,'Accepted: climb and maintain '+spokenAlt(n)+'.'); return true;
+    }
+    if((m=s.match(/^(?:descend and maintain|descend to|descend maintain) (.+)$/))){
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
+      altIn.value=n; cmd('descend'); voiceResult(true,'Accepted: descend and maintain '+spokenAlt(n)+'.'); return true;
+    }
+    if((m=s.match(/^maintain (.+)$/))){
+      n=parseSpokenNumber(m[1]); if(!(n>=500&&n<=12000)){voiceResult(false,'Altitude must be 500–12,000 feet. Nothing changed.');return false;}
+      altIn.value=n; cmd('maintain'); voiceResult(true,'Accepted: maintain '+spokenAlt(n)+'.'); return true;
+    }
+    if((m=s.match(/^(?:reduce speed to|speed) (.+)$/))){
+      n=parseSpokenNumber(m[1]); if(!(n>=60&&n<=350)){voiceResult(false,'Speed must be 60–350 knots. Nothing changed.');return false;}
+      spdIn.value=n; cmd('speed'); voiceResult(true,'Accepted: reduce speed to '+n+' knots.'); return true;
+    }
+    if((m=s.match(/^squawk (.+)$/))){
+      var code=String(m[1]).replace(/\s/g,''); if(!/^[0-7]{4}$/.test(code)){voiceResult(false,'Squawk must be four digits, 0–7. Nothing changed.');return false;}
+      sqIn.value=code; cmd('squawk'); voiceResult(true,'Squawk command processed. Check the log.'); return true;
+    }
+    voiceResult(false,'Not recognized. No aircraft state changed. Try “turn right heading 270”, “climb and maintain 3000”, or “reduce speed to 140”.');
+    log('sys','COMMAND REJECTED: no matching command template; aircraft state unchanged.');
+    return false;
+  }
+  document.getElementById('runVoiceCommand').addEventListener('click',function(){
+    runVoiceCommand(voiceCommandIn.value,'text'); voiceCommandIn.focus();
+  });
+  document.getElementById('clearVoiceCommand').addEventListener('click',function(){voiceCommandIn.value='';voiceCommandIn.focus();});
+  voiceCommandIn.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();runVoiceCommand(voiceCommandIn.value,'text');}});
+  document.getElementById('voiceHelp').addEventListener('click',function(){phraseHelp.hidden=!phraseHelp.hidden;});
+  function stopMic(){
+    micListening=false;
+    try{if(recognition) recognition.stop();}catch(e){}
+    micToggle.textContent='🎙 Start microphone';
+    micToggle.setAttribute('aria-pressed','false');
+  }
+  function startMic(){
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){voiceResult(false,'This browser does not support built-in speech recognition. Use the command box; mic support can be added with another engine later.');return;}
+    if(location.protocol!=='https:' && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
+      voiceResult(false,'Microphone recognition usually requires HTTPS or localhost. Open this file on localhost or use the command box.');return;
+    }
+    try{
+      if(!recognition){
+        recognition=new SR(); recognition.lang='en-US'; recognition.continuous=true; recognition.interimResults=false; recognition.maxAlternatives=1;
+        recognition.onresult=function(ev){
+          for(var i=ev.resultIndex;i<ev.results.length;i++){
+            if(ev.results[i].isFinal){
+              var heard=ev.results[i][0].transcript;
+              voiceCommandIn.value=heard;
+              var autoChecked = autoChecklistFromSpeech(heard);
+              // A full descend-and-maintain clearance is both a checklist keyword and an actual ATC command.
+              if(!autoChecked || /\b(?:descend and maintain|descend to|descend maintain)\s+.+/i.test(normalizeVoiceText(heard))) {
+                runVoiceCommand(heard,'mic');
+              }
+            }
+          }
+        };
+        recognition.onerror=function(ev){voiceResult(false,'Microphone error: '+ev.error+'. Check browser permission, then retry.');};
+        recognition.onend=function(){if(micListening){try{recognition.start();}catch(e){stopMic();}}};
+      }
+      micListening=true; recognition.start(); micToggle.textContent='■ Stop microphone'; micToggle.setAttribute('aria-pressed','true');
+      voiceResult(true,'Listening. Speak an ATC command or checklist keyword in English.');
+      log('sys','Microphone mode enabled: ATC commands plus solo-play checklist keyword detection.');
+    }catch(e){stopMic();voiceResult(false,'Could not start microphone. Check permission and try again.');}
+  }
+  micToggle.addEventListener('click',function(){if(micListening)stopMic();else startMic();});
+  window.addEventListener('keydown',function(e){
+    if(role!=='ctl' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag=(e.target&&e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable) return;
+    var map={'1':'climb','2':'descend','3':'maintain','4':'left','5':'right','6':'speed','p':'pos','h':'hdgq','a':'altq','i':'int'};
+    var key=e.key.toLowerCase();
+    if(map[key]){e.preventDefault();cmd(map[key]);}
+    else if(e.code==='Space' && AC.length){e.preventDefault();pauseBtn.click();}
+  });
+
+  identBtn.addEventListener('click', function(){
+    if(!running || !mine || !sel){ log('sys','Select a target first.'); return; }
+    if(mine.ident){ log('sys', mine.cs + ' is already identified.'); return; }
+    tries++;
+    if(sel === mine){
+      mine.ident = true; tick(mine,'R');
+      log('me','"' + mine.cs + ', RADAR CONTACT, ' + Math.round(rangeOf(mine)) + ' MILES ' +
+          compass8(bearingOf(mine)).toUpperCase() + ' OF MILLINGTON' +
+          (mine.mode === 'secondary' ? ', SQUAWK ' + mine.squawk : '') + '."');
+      log('sys','Identified in ' + tries + (tries === 1 ? ' attempt' : ' attempts') + '.');
+      statusEl.textContent = mine.cs + ' identified — vector it to the final approach course.';
+      identBtn.disabled = true;
+    } else {
+      log('sys','That target does not match ' + mine.cs + '. Ask again, or assign a turn and see which one moves.');
+    }
+    renderTargets(); renderMine(); renderChk(); draw();
+  });
+
+  cv.addEventListener('click', function(ev){
+    if(role !== 'ctl' || moved) return;
+    var r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, best = null, bd = 18;
+    AC.forEach(function(a){
+      var d = Math.hypot(sx(a.x) - mx, sy(a.y) - my);
+      if(d < bd){ bd = d; best = a; }
+    });
+    if(best){ sel = best; renderTargets(); draw(); identBtn.disabled = !(running && mine && !mine.ident); }
+  });
+
+  addAcBtn.addEventListener('click', function(){ addAircraft('vfr'); });
+  addIfrBtn.addEventListener('click', function(){ addAircraft('ifr'); });
+
+  backBtn.addEventListener('click', function(){
+    stopMic(); voiceMode = false;
+    running = false; role = null; remote = null; measEl.hidden = true;
+    if(synth) synth.cancel();
+    if(room && room.leave){ try { room.leave(); } catch(e){} }
+    room = null;
+    document.getElementById('app').hidden = true;
+    document.getElementById('gate').hidden = false;
+  });
+
+  // range / bearing measuring line (click-drag on the scope)
+  var mStart = null, mNow = null, moved = false;
+  function canvasPt(ev){
+    var r = cv.getBoundingClientRect();
+    return {px: ev.clientX - r.left, py: ev.clientY - r.top};
+  }
+  cv.addEventListener('pointerdown', function(ev){
+    var p = canvasPt(ev); mStart = p; mNow = p; moved = false;
+    cv.setPointerCapture(ev.pointerId);
+  });
+  cv.addEventListener('pointermove', function(ev){
+    if(!mStart) return;
+    mNow = canvasPt(ev);
+    if(Math.hypot(mNow.px - mStart.px, mNow.py - mStart.py) > 6) moved = true;
+    if(moved){
+      var dx = (mNow.px - mStart.px)/ppn, dy = -(mNow.py - mStart.py)/ppn;
+      var brg = norm(Math.atan2(dx,dy)*180/Math.PI), dist = Math.sqrt(dx*dx + dy*dy);
+      measEl.hidden = false;
+      measEl.textContent = 'heading ' + hdg3(brg) + ' · ' + dist.toFixed(1) + ' NM';
+      measEl.style.left = (mNow.px + 14) + 'px';
+      measEl.style.top = (mNow.py - 10) + 'px';
+    }
+  });
+  function endMeasure(){ mStart = null; mNow = null; }
+  cv.addEventListener('pointerup', function(ev){
+    if(!moved){ measEl.hidden = true; }
+    endMeasure();
+  });
+  cv.addEventListener('pointercancel', function(){ measEl.hidden = true; endMeasure(); });
+  cv.addEventListener('dblclick', function(){ measEl.hidden = true; });
+
+  rateIn.addEventListener('input', function(){
+    rate = Number(rateIn.value); rateV.textContent = rate.toFixed(1) + '×';
+  });
+  startBtn.addEventListener('click', function(){
+    simSec = 0; logEl.innerHTML = ''; spawn(); running = true;
+    pauseBtn.disabled = false; pauseBtn.textContent = 'Pause'; identBtn.disabled = true;
+    startBtn.textContent = 'New scenario';
+    statusEl.textContent = 'Three targets, one of them is ' + mine.cs + '. Find it, then identify it.';
+    log('sys','Three targets. Blocks show squawk, altitude (hundreds) and speed (tens of kt) only.');
+    log('sys','Your aircraft is VFR — run W C R V, then the rest of the card.');
+    log('pilot','"NMN Arrival, ' + mine.cs + ', with you, requesting ' + mine.intent + ' at Millington."');
+    log('sys','Ask for position, heading or altitude — or give a turn — until you know which blip it is.');
+    renderTargets(); renderMine();
+  });
+  pauseBtn.addEventListener('click', function(){
+    running = !running; pauseBtn.textContent = running ? 'Pause' : 'Resume';
+    log('sys', running ? 'Simulation resumed.' : 'Simulation paused.');
+  });
+
+  // ---------- PeerJS room sync ----------
+  function snapshot(){
+    return {
+      clock: clock(),
+      ac: AC.map(function(a){
+        return {id:a.id, x:+a.x.toFixed(3), y:+a.y.toFixed(3), hdg:+a.hdg.toFixed(1),
+                alt:Math.round(a.alt), spd:Math.round(a.spd), mode:a.mode, squawk:a.squawk,
+                reported:a.reported, trail:a.trail.slice(0,4), violated:!!a.violated, phase:a.phase,
+                tag:(a.ctl && a.ident) ? a.cs : null};
+      }),
+      booms: booms.map(function(b){ return {x:b.x, y:b.y, age:b.age, parts:b.parts}; })
+    };
+  }
+  var lastTx = 0;
+  function sync(now){
+    if(!room || role !== 'ctl') return;
+    if(now - lastTx < 180) return;
+    lastTx = now;
+    try { room.emit('state', snapshot()); } catch(e){}
+  }
+
+  var peer = null, peerConns = [], reconnTimer = null;
+  function cleanRoomId(name){
+    return 'nmn-sim-ctl-' + String(name || 'nmn').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+  }
+
+  function connect(){
+    if(typeof Peer === 'undefined'){
+      if(role === 'ctl') log('alert', 'PeerJS failed to load. Check internet connection.');
+      return;
+    }
+    if(room && room.leave){ try { room.leave(); } catch(e){} }
+    var targetId = cleanRoomId(roomName);
+
+    if(role === 'ctl'){
+      peerConns = [];
+      peer = new Peer(targetId);
+      peer.on('open', function(){
+        log('sys', 'Room "' + roomName + '" is live. Waiting for player to join…');
+      });
+      peer.on('connection', function(conn){
+        peerConns.push(conn);
+        conn.on('open', function(){
+          log('sys', 'Player connected to room "' + roomName + '".');
+          try { conn.send({event: 'state', data: snapshot()}); } catch(e){}
+        });
+        conn.on('close', function(){
+          peerConns = peerConns.filter(function(c){ return c !== conn; });
+          log('sys', 'Player disconnected.');
+        });
+        conn.on('error', function(){
+          peerConns = peerConns.filter(function(c){ return c !== conn; });
+        });
+      });
+      peer.on('error', function(err){
+        if(err.type === 'unavailable-id'){
+          log('alert', 'Room "' + roomName + '" already has an active Controller. Change room name or close the other tab.');
+        } else {
+          log('sys', 'Network status: ' + err.type);
+        }
+      });
+      room = {
+        emit: function(ev, data){
+          var payload = {event: ev, data: data};
+          peerConns.forEach(function(c){
+            if(c.open){ try { c.send(payload); } catch(e){} }
+          });
+        },
+        leave: function(){
+          peerConns.forEach(function(c){ try { c.close(); } catch(e){} });
+          peerConns = [];
+          if(peer){ try { peer.destroy(); } catch(e){} peer = null; }
+        }
+      };
+    } else if(role === 'ply'){
+      peer = new Peer();
+      var activeConn = null;
+      var tryJoin = function(){
+        if(!peer || peer.destroyed || role !== 'ply') return;
+        if(activeConn && activeConn.open) return;
+        var conn = peer.connect(targetId, {reliable: false});
+        activeConn = conn;
+        conn.on('open', function(){
+          lastRx = performance.now();
+        });
+        conn.on('data', function(msg){
+          if(!msg) return;
+          if(msg.event === 'say' && msg.data && msg.data.text){
+            speak(msg.data.text);
+          } else if(msg.event === 'state' && msg.data && msg.data.ac){
+            remote = msg.data;
+            lastRx = performance.now();
+          }
+        });
+        conn.on('close', function(){ activeConn = null; });
+        conn.on('error', function(){ activeConn = null; });
+      };
+      peer.on('open', function(){
+        tryJoin();
+        reconnTimer = setInterval(tryJoin, 2500);
+      });
+      room = {
+        emit: function(){},
+        leave: function(){
+          if(reconnTimer){ clearInterval(reconnTimer); reconnTimer = null; }
+          if(activeConn){ try { activeConn.close(); } catch(e){} activeConn = null; }
+          if(peer){ try { peer.destroy(); } catch(e){} peer = null; }
+        }
+      };
+    }
+  }
+
+  // ---------- loop ----------
+  function frame(ts){
+    if(!role){ t0 = 0; requestAnimationFrame(frame); return; }
+    if(!t0) t0 = ts;
+    var dt = Math.min((ts - t0)/1000, 0.5)*rate; t0 = ts;
+    if(role === 'ctl' && running){ simSec += dt; step(dt); clockEl.textContent = clock(); }
+    else if(role === 'ctl'){ for(var b=0;b<booms.length;b++){ booms[b].age += dt; if(booms[b].age > 1.6){ booms.splice(b,1); b--; } } }
+    if(role === 'ply' && remote){
+      (remote.ac||[]).forEach(function(a){
+        var t = trails[a.id] || (trails[a.id] = []);
+        if(!t.length || Math.hypot(t[0].x - a.x, t[0].y - a.y) > 0.45){ t.unshift({x:a.x,y:a.y}); if(t.length > 4) t.pop(); }
+      });
+    }
+    draw();
+    sync(ts);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- role gate ----------
+  function enter(r){
+    voiceMode = (r === 'voice');
+    role = (r === 'voice') ? 'ctl' : r;
+    roomName = (document.getElementById('room').value || 'nmn').trim().toLowerCase().slice(0,24);
+    document.getElementById('gate').hidden = true;
+    var app = document.getElementById('app');
+    app.hidden = false;
+    voiceCard.hidden = !voiceMode;
+    if(role === 'ply'){
+      document.getElementById('side').hidden = true;
+      app.classList.add('solo');
+      scopetag.textContent = 'NMN ARRIVAL · 30 NM · player view · room "' + roomName + '"';
+      waitEl.hidden = false;
+    } else {
+      document.getElementById('side').hidden = false;
+      app.classList.remove('solo');
+      waitEl.hidden = true;
+      scopetag.textContent = 'NMN ARRIVAL · 30 NM · controller · room "' + roomName + '" · MVA 2500 inside 5 NM / 3400 northwest beyond 20 NM / 1500 elsewhere';
+      renderChk(); renderTargets(); renderMine();
+    }
+    if(voiceMode){
+      scopetag.textContent = 'NMN ARRIVAL · PERSONAL VOICE MODE · single-player · microphone/text commands';
+      waitEl.hidden = true;
+      log('sys','Personal Voice Mode ready. Start the simulator, then issue one supported command at a time.');
+    } else connect();
+    resize();
+    if(!looping){ looping = true; requestAnimationFrame(frame); }
+  }
+  document.getElementById('asCtl').addEventListener('click', function(){ enter('ctl'); });
+  document.getElementById('asVoice').addEventListener('click', function(){ enter('voice'); });
+  document.getElementById('asPly').addEventListener('click', function(){ enter('ply'); });
+
+  window.addEventListener('resize', resize);
+})();
+</script>
+</body>
+</html>
