@@ -328,6 +328,20 @@
     return 1500;
   }
 
+  function safeInitialMva(brg, nm, trk, spd){
+    var x = nm*Math.sin(brg*Math.PI/180), y = nm*Math.cos(brg*Math.PI/180);
+    var maxM = mvaAt(brg, nm);
+    var vx = (spd/3600)*Math.sin(trk*Math.PI/180);
+    var vy = (spd/3600)*Math.cos(trk*Math.PI/180);
+    for(var t = 10; t <= 90; t += 10){
+      var nx = x + vx*t, ny = y + vy*t;
+      var r = Math.hypot(nx, ny), b = norm(Math.atan2(nx, ny)*180/Math.PI);
+      var m = mvaAt(b, r);
+      if(m > maxM) maxM = m;
+    }
+    return maxM;
+  }
+
   // ---------- checklist ----------
   function renderChk(){
     if(role !== 'ctl') return;
@@ -350,7 +364,13 @@
         var b = document.createElement('button');
         b.setAttribute('aria-pressed', a.chk[c.k] ? 'true' : 'false');
         b.innerHTML = '<span class="k">' + c.k + '</span><span class="n">' + c.n + '</span>';
-        b.addEventListener('click', function(){ a.chk[c.k] = !a.chk[c.k]; renderChk(); });
+        b.addEventListener('click', function(){
+          a.chk[c.k] = !a.chk[c.k];
+          if(c.k === 'W' && a.chk[c.k] && running){
+            log('pilot','"' + a.cs + ' has the weather, ' + a.type + ', requesting ' + a.intent + ' at Millington."');
+          }
+          renderChk();
+        });
         row.appendChild(b);
       });
       box.appendChild(row);
@@ -372,12 +392,15 @@
       var cs = makeCs(usedCs); usedCs[cs] = 1;
       var ty = pick(TYPES), brg = rnd(0,360), nm = rnd(13,26);
       var trk = norm(brg + 180 + rnd(-45,45));
-      var m = mvaAt(brg,nm);
-      var alt = Math.min(CEIL - 200, Math.round(rnd(m + 200, CEIL - 300)/100)*100);
+      var spd = Math.round(ty.spd + rnd(-15,15));
+      var m = safeInitialMva(brg, nm, trk, spd);
+      var minAlt = Math.ceil((m + 300)/100)*100;
+      var maxAlt = CEIL - 200;
+      var alt = Math.min(maxAlt, Math.max(minAlt, Math.round(rnd(minAlt, maxAlt)/100)*100));
       var secondary = Math.random() < 0.62;
       AC.push({
         id: 'a' + i, cs: cs,
-        type: ty.t, spd: Math.round(ty.spd + rnd(-15,15)),
+        type: ty.t, spd: spd,
         x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
         hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
         mode: secondary ? 'secondary' : 'primary',
@@ -395,13 +418,16 @@
     var used = {}; AC.forEach(function(a){ used[a.cs] = 1; if(a.squawk) used[a.squawk] = 1; });
     var ty = pick(TYPES), brg = rnd(0,360), nm = rnd(22,28);
     var trk = norm(brg + 180 + rnd(-40,40));
-    var m = mvaAt(brg,nm);
-    var alt = Math.round(rnd(m + 200, CEIL - 300)/100)*100;
+    var spd = Math.round(ty.spd + rnd(-15,15));
+    var m = safeInitialMva(brg, nm, trk, spd);
+    var minAlt = Math.ceil((m + 300)/100)*100;
+    var maxAlt = CEIL - 200;
+    var alt = Math.min(maxAlt, Math.max(minAlt, Math.round(rnd(minAlt, maxAlt)/100)*100));
     var secondary = kind === 'ifr' ? true : Math.random() < 0.6;
     var a = {
       id: 'a' + (Date.now() % 100000) + Math.floor(Math.random()*90),
       cs: makeCs(used),
-      type: ty.t, spd: Math.round(ty.spd + rnd(-15,15)),
+      type: ty.t, spd: spd,
       x: nm*Math.sin(brg*Math.PI/180), y: nm*Math.cos(brg*Math.PI/180),
       hdg: trk, tHdg: trk, turn: 0, alt: alt, tAlt: alt,
       mode: secondary ? 'secondary' : 'primary',
@@ -590,9 +616,23 @@
     ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke();
     ctx.textAlign = 'left'; ctx.fillStyle = css('--dim');
     ctx.fillText('NMN · RWY 16', cx + 10, cy + 12);
-    var f1 = polar(340,2), f2 = polar(340,12);
-    ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1; ctx.setLineDash([5,5]);
-    ctx.beginPath(); ctx.moveTo(f1[0],f1[1]); ctx.lineTo(f2[0],f2[1]); ctx.stroke(); ctx.setLineDash([]);
+
+    // Final approach course (2 NM to 8 NM along 340°) + Doglegs from 8 NM out along 320° and 360° stopping at 20 NM
+    var f1 = polar(340,2), f8 = polar(340,8);
+    var x8 = 8*Math.sin(340*Math.PI/180), y8 = 8*Math.cos(340*Math.PI/180);
+    function doglegEnd(hdg, maxR){
+      var rad = hdg*Math.PI/180, vx = Math.sin(rad), vy = Math.cos(rad);
+      var b = 2*(x8*vx + y8*vy), c = (x8*x8 + y8*y8) - maxR*maxR;
+      var d = (-b + Math.sqrt(Math.max(0, b*b - 4*c)))/2;
+      return [sx(x8 + d*vx), sy(y8 + d*vy)];
+    }
+    var dl320 = doglegEnd(320, 20), dl360 = doglegEnd(360, 20);
+    ctx.strokeStyle = css('--ring'); ctx.lineWidth = 1.2; ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.moveTo(f1[0],f1[1]); ctx.lineTo(f8[0],f8[1]);
+    ctx.moveTo(f8[0],f8[1]); ctx.lineTo(dl320[0],dl320[1]);
+    ctx.moveTo(f8[0],f8[1]); ctx.lineTo(dl360[0],dl360[1]);
+    ctx.stroke(); ctx.setLineDash([]);
 
     (list||[]).forEach(function(a, idx){
       var X = sx(a.x), Y = sy(a.y), isSel = (role === 'ctl' && sel && sel.id === a.id), tagged = !!a.tag;
